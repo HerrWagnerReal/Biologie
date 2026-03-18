@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vogelbestimmung – Zufallsvogel</title>
+<style>
+  :root{
+    --bg:#f4f7fb;
+    --card:#ffffff;
+    --border:#d8dee9;
+    --text:#1f2937;
+    --muted:#6b7280;
+    --blue:#2563eb;
+    --blue-soft:#dbeafe;
+    --green:#15803d;
+    --green-soft:#dcfce7;
+    --red:#b91c1c;
+    --red-soft:#fee2e2;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    padding:24px;
+    font-family:Arial, Helvetica, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  .card{
+    max-width:1000px;
+    margin:0 auto;
+    background:var(--card);
+    border-radius:18px;
+    padding:24px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.08);
+  }
+  h1{
+    margin:0 0 8px 0;
+    font-size:2rem;
+  }
+  .intro{
+    margin:0 0 22px 0;
+    color:var(--muted);
+  }
+  .layout{
+    display:grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap:22px;
+    align-items:start;
+  }
+  .question-box{
+    background:#f8fafc;
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:18px;
+  }
+  .step{
+    color:var(--muted);
+    font-size:0.95rem;
+    margin-bottom:8px;
+  }
+  .question{
+    font-size:1.45rem;
+    font-weight:bold;
+    margin-bottom:18px;
+  }
+  .answers{
+    display:grid;
+    gap:12px;
+  }
+  button.answer{
+    width:100%;
+    text-align:left;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:#fff;
+    padding:15px 16px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+  button.answer:hover{
+    border-color:var(--blue);
+    background:#eff6ff;
+  }
+
+  .target-box{
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:16px;
+    background:#fff;
+  }
+  .target-title{
+    font-size:1.05rem;
+    font-weight:bold;
+    margin-bottom:8px;
+  }
+  .target-sub{
+    color:var(--muted);
+    font-size:0.95rem;
+    margin-bottom:14px;
+  }
+  .target-image{
+    display:block;
+    width:100%;
+    max-height:360px;
+    object-fit:contain;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:#fff;
+  }
+  .target-name{
+    margin-top:10px;
+    font-weight:bold;
+    color:var(--muted);
+  }
+  .target-name.hidden{
+    visibility:hidden;
+  }
+  .img-note{
+    color:var(--muted);
+    font-size:0.92rem;
+    margin-top:8px;
+  }
+
+  .path-section{
+    margin-top:22px;
+  }
+  .path-title{
+    font-size:1.05rem;
+    font-weight:bold;
+    margin-bottom:10px;
+  }
+  .path-rail{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+  }
+  .node{
+    padding:10px 14px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--muted);
+    font-size:0.95rem;
+  }
+  .node.done{
+    background:var(--green-soft);
+    border-color:#86efac;
+    color:var(--green);
+    font-weight:bold;
+  }
+  .node.current{
+    background:var(--blue-soft);
+    border-color:#93c5fd;
+    color:var(--blue);
+    font-weight:bold;
+  }
+  .arrow{
+    color:#94a3b8;
+    font-size:1.1rem;
+  }
+
+  .mini-list{
+    margin-top:16px;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px 16px;
+  }
+  .mini-list strong{
+    display:block;
+    margin-bottom:8px;
+  }
+  .mini-list ol{
+    margin:0;
+    padding-left:20px;
+  }
+  .mini-list li{
+    margin-bottom:6px;
+  }
+
+  .result{
+    margin-top:18px;
+    border-radius:16px;
+    padding:18px;
+  }
+  .result.correct{
+    background:var(--green-soft);
+    border:1px solid #86efac;
+  }
+  .result.wrong{
+    background:var(--red-soft);
+    border:1px solid #fca5a5;
+  }
+  .result-label{
+    font-weight:bold;
+    margin-bottom:6px;
+  }
+  .result.correct .result-label{ color:var(--green); }
+  .result.wrong .result-label{ color:var(--red); }
+  .bird-name{
+    font-size:1.6rem;
+    font-weight:bold;
+    margin-bottom:8px;
+  }
+  .controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:16px;
+  }
+  .controls button{
+    border:none;
+    border-radius:12px;
+    background:var(--blue);
+    color:#fff;
+    padding:12px 16px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+  .controls button:hover{
+    background:#1d4ed8;
+  }
+
+  @media (max-width:800px){
+    body{padding:14px}
+    .card{padding:16px}
+    .layout{grid-template-columns:1fr}
+    .question{font-size:1.2rem}
+    .arrow{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Vogelbestimmung</h1>
+  <p class="intro">Zu Beginn erscheint ein zufälliger Vogel. Bestimme ihn mit dem Schlüssel. Das Bild bleibt die ganze Zeit sichtbar.</p>
+  <div id="app"></div>
+</div>
+
+<script>
+const tree = {
+  start:{step:"Frage 1",q:"Ist der Vogel sehr groß und ganz schwarz?",
+    a:[
+      {t:"Ja, er ist groß und ganz schwarz.",n:"q2"},
+      {t:"Nein, er ist nicht groß und schwarz.",n:"q3"}
+    ]},
+  q2:{step:"Frage 2",q:"Hat der Vogel nur schwarzes Gefieder?",
+    a:[
+      {t:"Ja, er ist komplett schwarz.",r:"Rabenkrähe"},
+      {t:"Nein, er ist schwarz, hat aber auch weiße Stellen.",r:"Elster"}
+    ]},
+  q3:{step:"Frage 2",q:"Hat der Vogel eine rote Brust oder einen roten Bauch?",
+    a:[
+      {t:"Ja, er hat eine rote Brust oder einen roten Bauch.",n:"q4"},
+      {t:"Nein, er hat keine rote Brust und keinen roten Bauch.",n:"q5"}
+    ]},
+  q4:{step:"Frage 3",q:"Ist die rote Brust klein und rundlich?",
+    a:[
+      {t:"Ja, die rote Brust ist klein und rundlich.",r:"Rotkehlchen"},
+      {t:"Nein, der Vogel ist eher grünlich und hat eine gelbliche Brust.",r:"Grünfink"}
+    ]},
+  q5:{step:"Frage 3",q:"Ist der Vogel auffällig gelb gefärbt und hat einen schwarzen oder blauen Kopf?",
+    a:[
+      {t:"Ja, er ist gelb und hat einen schwarzen oder blauen Kopf.",n:"q6"},
+      {t:"Nein, er ist nicht gelb gefärbt, sondern orange oder eine andere Farbe.",n:"q7"}
+    ]},
+  q6:{step:"Frage 4",q:"Hat der Vogel einen schwarzen Kopf?",
+    a:[
+      {t:"Ja, er hat einen schwarzen Kopf.",r:"Kohlmeise"},
+      {t:"Nein, er hat keinen schwarzen Kopf, sondern eine blaue Kappe.",r:"Blaumeise"}
+    ]},
+  q7:{step:"Frage 4",q:"Hat der Vogel ein schwarz-weißes Muster und klopft oft an Bäume?",
+    a:[
+      {t:"Ja, er hat ein schwarz-weißes Muster und klopft an Bäume.",r:"Buntspecht"},
+      {t:"Nein, er hat kein solches Muster und klopft nicht an Bäume.",n:"q8"}
+    ]},
+  q8:{step:"Frage 5",q:"Ist der Vogel braun oder grau und oft in der Stadt zu sehen?",
+    a:[
+      {t:"Ja, er ist braun oder grau und lebt oft in der Stadt.",n:"q9"},
+      {t:"Nein, er ist auffälliger gefärbt oder lebt eher im Wald.",n:"q10"}
+    ]},
+  q9:{step:"Frage 6",q:"Hat der Vogel einen einfarbig graubraunen Kopf?",
+    a:[
+      {t:"Ja, sein Kopf ist einfarbig graubraun.",r:"Haussperling (Spatz)"},
+      {t:"Nein, sein Kopf ist braun und hat einen dunklen Fleck an der Wange.",r:"Feldsperling"}
+    ]},
+  q10:{step:"Frage 6",q:"Ist der Vogel dunkel gefärbt und hat einen gelben Schnabel?",
+    a:[
+      {t:"Ja, er ist dunkel und hat einen gelben Schnabel.",r:"Amsel"},
+      {t:"Nein, er ist nicht komplett dunkel oder hat keinen gelben Schnabel.",n:"q11"}
+    ]},
+  q11:{step:"Frage 7",q:"Hat der Vogel einen graublauen Rücken und einen schwarzen Streifen durchs Auge?",
+    a:[
+      {t:"Ja, er hat einen graublauen Rücken und einen schwarzen Augenstreif.",r:"Kleiber"},
+      {t:"Nein, er hat keinen solchen Streifen oder keine graublaue Farbe.",n:"q12"}
+    ]},
+  q12:{step:"Frage 8",q:"Hat der Vogel blaue Flügel und einen schwarzen Streifen im Gesicht?",
+    a:[
+      {t:"Ja, er hat blaue Flügel und einen schwarzen Streifen im Gesicht.",r:"Eichelhäher"},
+      {t:"Nein, er hat eine rötliche Brust und einen dunklen Kopf.",r:"Buchfink"}
+    ]}
+};
+
+const birdNotes = {
+  "Rabenkrähe":"Großer schwarzer Vogel.",
+  "Elster":"Schwarz-weißer Vogel mit langem Schwanz.",
+  "Rotkehlchen":"Kleiner Vogel mit roter Brust.",
+  "Grünfink":"Grünlicher Vogel mit gelblichen Bereichen.",
+  "Kohlmeise":"Gelb mit schwarzem Kopf.",
+  "Blaumeise":"Klein, gelblich und mit blauer Kappe.",
+  "Buntspecht":"Schwarz-weiß gemustert, oft an Bäumen.",
+  "Haussperling (Spatz)":"Häufiger Stadtvogel.",
+  "Feldsperling":"Sperling mit braunem Kopf und Wangenfleck.",
+  "Amsel":"Dunkler Vogel mit gelbem Schnabel.",
+  "Kleiber":"Graublau mit dunklem Streifen durchs Auge.",
+  "Eichelhäher":"Braunrosa mit blauem Flügelfeld.",
+  "Buchfink":"Mit rötlicher Brust und dunklerem Kopf."
+};
+
+const birdImageCandidates = {
+  "Rabenkrähe": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Corvus_corone_2.JPG"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Corvus_corone_02.jpg"
+    ]
+  },
+  "Elster": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Pica_pica_-_01.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Pica_pica_-_01.jpg"
+    ]
+  },
+  "Rotkehlchen": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Erithacus_rubecula_with_cocked_head.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Erithacus_rubecula_with_cocked_head_-_cropped.jpg"
+    ]
+  },
+  "Grünfink": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Carduelis_chloris_-United_Kingdom_-male-8.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Carduelis_chloris_-Fedderwardersiel%2C_Lower_Saxony%2C_Germany_-male-8.jpg"
+    ]
+  },
+  "Kohlmeise": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Great_tit_%28Parus_major%29_male.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Parus_major_male.jpg"
+    ]
+  },
+  "Blaumeise": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Blue_Tit_%28Cyanistes_caeruleus%291.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Cyanistes_caeruleus_1.JPG"
+    ]
+  },
+  "Buntspecht": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Great_Spotted_Woodpecker_-_Dendrocopos_major_-_Male_1.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Great_Spotted_Woodpecker_-_Dendrocopos_major_-_Male.jpg"
+    ]
+  },
+  "Haussperling (Spatz)": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Passer_domesticus_%28male%29.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Passer_domesticus_male.jpg"
+    ]
+  },
+  "Feldsperling": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Male_eurasian_tree_sparrow_in_field.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Passer_montanus_at_KL_%281%29.jpg"
+    ]
+  },
+  "Amsel": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Turdus_merula_%28male%29_resting.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Blackbird_-_Turdus_merula_-_Male.jpg"
+    ]
+  },
+  "Kleiber": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Sitta_europaea01.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Sitta_europaea1.jpg"
+    ]
+  },
+  "Eichelhäher": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Jay_%28Garrulus_glandarius%29_%281%29.JPG"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Garrulus_glandarius_1.jpg"
+    ]
+  },
+  "Buchfink": {
+    front: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Male_Chaffinch_-_Fringilla_coelebs.jpg"
+    ],
+    side: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Fringilla_coelebs_male.jpg"
+    ]
+  }
+};
+
+const birdNames = Object.keys(birdImageCandidates);
+
+let current = "start";
+let history = [];
+let resultBird = null;
+let targetBird = null;
+let currentImageIndex = 0;
+
+function randomBird() {
+  return birdNames[Math.floor(Math.random() * birdNames.length)];
+}
+
+function renderPathHtml(){
+  let html = '<div class="path-section"><div class="path-title">Dein Weg</div><div class="path-rail">';
+  html += '<span class="node done">Start</span>';
+
+  history.forEach(step => {
+    html += '<span class="arrow">→</span>';
+    html += `<span class="node done">${step.short}</span>`;
+  });
+
+  html += '<span class="arrow">→</span>';
+
+  if(resultBird){
+    html += `<span class="node current">${resultBird}</span>`;
+  } else {
+    const label = tree[current]?.step || "Aktuelle Frage";
+    html += `<span class="node current">${label}</span>`;
+  }
+
+  html += '</div>';
+
+  if(history.length){
+    html += '<div class="mini-list"><strong>Bisher gewählt:</strong><ol>';
+    history.forEach(step => {
+      html += `<li>${step.answerText}</li>`;
+    });
+    if(resultBird){
+      html += `<li><strong>Bestimmt: ${resultBird}</strong></li>`;
+    }
+    html += '</ol></div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderTargetBox(revealName=false){
+  const shownNameClass = revealName ? "target-name" : "target-name hidden";
+  return `
+    <div class="target-box">
+      <div class="target-title">Diesen Vogel sollst du bestimmen</div>
+      <div class="target-sub">Schaue dir die zwei Bilder an. Das erste zeigt den Vogel möglichst von vorne, das zweite möglichst von der Seite.</div>
+      
+    <img id="target-image-1" class="target-image" alt="Vogel Ansicht 1">
+    <img id="target-image-2" class="target-image" alt="Vogel Ansicht 2" style="margin-top:10px;">
+    
+      <div id="target-name" class="${shownNameClass}">${targetBird || ""}</div>
+      <div id="target-note" class="img-note">Bild wird geladen …</div>
+    </div>
+  `;
+}
+
+function loadTargetImage() {
+  const sets = birdImageCandidates[targetBird] || {front: [], side: []};
+  const img1 = document.getElementById("target-image-1");
+  const img2 = document.getElementById("target-image-2");
+  const note = document.getElementById("target-note");
+
+  if(!img1 || !img2) return;
+
+  function loadFromList(img, list, fallbackList = []) {
+    const sources = [...list, ...fallbackList];
+    let index = 0;
+
+    function tryNext() {
+      if (index >= sources.length) {
+        img.style.display = "none";
+        return;
+      }
+      img.onerror = tryNext;
+      img.onload = () => {
+        img.style.display = "block";
+      };
+      img.src = sources[index++];
+    }
+
+    tryNext();
+  }
+
+  loadFromList(img1, sets.front, sets.side);
+  loadFromList(img2, sets.side, sets.front);
+
+  note.textContent = "Bild 1: möglichst Vorderansicht · Bild 2: möglichst Seitenansicht · Bildquelle: Wikimedia Commons";
+}
+
+function render(){
+  const app = document.getElementById("app");
+  const node = tree[current];
+  let html = `
+    <div class="layout">
+      <div>
+        <div class="question-box">
+          <div class="step">${node.step}</div>
+          <div class="question">${node.q}</div>
+          <div class="answers">
+    `;
+  node.a.forEach((ans,i)=>{
+    html += `<button class="answer" onclick="choose(${i})">${ans.t}</button>`;
+  });
+  html += `
+          </div>
+        </div>
+        ${renderPathHtml()}
+      </div>
+      <div>
+        ${renderTargetBox(false)}
+      </div>
+    </div>
+  `;
+  app.innerHTML = html;
+  loadTargetImage();
+}
+
+function choose(i){
+  const node = tree[current];
+  const ans = node.a[i];
+  history.push({
+    questionId: current,
+    answerIndex: i,
+    answerText: ans.t,
+    short: "Antwort"
+  });
+
+  if(ans.r){
+    resultBird = ans.r;
+    showResult(ans.r);
+  } else {
+    current = ans.n;
+    resultBird = null;
+    render();
+  }
+}
+
+function showResult(bird){
+  const correct = bird === targetBird;
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="layout">
+      <div>
+        <div class="result ${correct ? 'correct' : 'wrong'}">
+          <div class="result-label">${correct ? 'Richtig bestimmt' : 'Noch nicht richtig bestimmt'}</div>
+          <div class="bird-name">${bird}</div>
+          <div>${correct ? 'Das ist der gesuchte Vogel.' : 'Das Bild zeigt einen anderen Vogel.'}</div>
+          <div style="margin-top:8px;">Gesucht war: <strong>${targetBird}</strong></div>
+          <div style="margin-top:8px;">${birdNotes[targetBird] || ""}</div>
+          <div class="controls">
+            <button onclick="newRound()">Neuer Vogel</button>
+            <button onclick="restartSameBird()">Nochmal mit demselben Vogel</button>
+            <button onclick="goBack()">Eine Frage zurück</button>
+          </div>
+        </div>
+        ${renderPathHtml()}
+      </div>
+      <div>
+        ${renderTargetBox(true)}
+      </div>
+    </div>
+  `;
+  loadTargetImage();
+}
+
+function goBack(){
+  if(history.length === 0){
+    restartSameBird();
+    return;
+  }
+  history.pop();
+  resultBird = null;
+
+  if(history.length === 0){
+    current = "start";
+  } else {
+    let pos = "start";
+    for(const step of history){
+      const choice = tree[pos].a[step.answerIndex];
+      pos = choice.n || pos;
+    }
+    current = pos;
+  }
+  render();
+}
+
+function restartSameBird(){
+  current = "start";
+  history = [];
+  resultBird = null;
+  render();
+}
+
+function newRound(){
+  targetBird = randomBird();
+  restartSameBird();
+}
+
+targetBird = randomBird();
+render();
+</script>
+</body>
+</html>
