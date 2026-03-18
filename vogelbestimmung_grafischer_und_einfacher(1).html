@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vogelbestimmung – einfache grafische Ansicht</title>
+<style>
+  :root{
+    --bg:#f4f7fb;
+    --card:#ffffff;
+    --border:#d8dee9;
+    --text:#1f2937;
+    --muted:#6b7280;
+    --blue:#2563eb;
+    --blue-soft:#dbeafe;
+    --green:#15803d;
+    --green-soft:#dcfce7;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    padding:24px;
+    font-family:Arial, Helvetica, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  .card{
+    max-width:900px;
+    margin:0 auto;
+    background:var(--card);
+    border-radius:18px;
+    padding:24px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.08);
+  }
+  h1{
+    margin:0 0 8px 0;
+    font-size:2rem;
+  }
+  .intro{
+    margin:0 0 22px 0;
+    color:var(--muted);
+  }
+  .question-box{
+    background:#f8fafc;
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:18px;
+  }
+  .step{
+    color:var(--muted);
+    font-size:0.95rem;
+    margin-bottom:8px;
+  }
+  .question{
+    font-size:1.45rem;
+    font-weight:bold;
+    margin-bottom:18px;
+  }
+  .answers{
+    display:grid;
+    gap:12px;
+  }
+  button.answer{
+    width:100%;
+    text-align:left;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:#fff;
+    padding:15px 16px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+  button.answer:hover{
+    border-color:var(--blue);
+    background:#eff6ff;
+  }
+
+  .path-section{
+    margin-top:22px;
+  }
+  .path-title{
+    font-size:1.05rem;
+    font-weight:bold;
+    margin-bottom:10px;
+  }
+  .path-rail{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+  }
+  .node{
+    padding:10px 14px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--muted);
+    font-size:0.95rem;
+  }
+  .node.done{
+    background:var(--green-soft);
+    border-color:#86efac;
+    color:var(--green);
+    font-weight:bold;
+  }
+  .node.current{
+    background:var(--blue-soft);
+    border-color:#93c5fd;
+    color:var(--blue);
+    font-weight:bold;
+  }
+  .arrow{
+    color:#94a3b8;
+    font-size:1.1rem;
+  }
+
+  .mini-list{
+    margin-top:16px;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px 16px;
+  }
+  .mini-list strong{
+    display:block;
+    margin-bottom:8px;
+  }
+  .mini-list ol{
+    margin:0;
+    padding-left:20px;
+  }
+  .mini-list li{
+    margin-bottom:6px;
+  }
+
+  .result{
+    background:var(--green-soft);
+    border:1px solid #86efac;
+    border-radius:16px;
+    padding:18px;
+  }
+  .result-label{
+    color:var(--green);
+    font-weight:bold;
+    margin-bottom:6px;
+  }
+  .bird-name{
+    font-size:1.9rem;
+    font-weight:bold;
+    margin-bottom:8px;
+  }
+  .bird-note{
+    margin-bottom:14px;
+  }
+  img{
+    display:block;
+    max-width:100%;
+    max-height:420px;
+    border-radius:14px;
+    border:1px solid var(--border);
+    margin-bottom:10px;
+  }
+  .img-note{
+    color:var(--muted);
+    font-size:0.92rem;
+  }
+  .controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:16px;
+  }
+  .controls button{
+    border:none;
+    border-radius:12px;
+    background:var(--blue);
+    color:#fff;
+    padding:12px 16px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+  .controls button:hover{
+    background:#1d4ed8;
+  }
+
+  @media (max-width:700px){
+    body{padding:14px}
+    .card{padding:16px}
+    .question{font-size:1.2rem}
+    .path-rail{align-items:flex-start}
+    .arrow{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Vogelbestimmung</h1>
+  <p class="intro">Beantworte die Fragen. Unten siehst du deinen Weg als einfache Kette.</p>
+  <div id="app"></div>
+</div>
+
+<script>
+const tree = {
+  start:{step:"Frage 1",q:"Ist der Vogel sehr groß und ganz schwarz?",
+    a:[
+      {t:"Ja, er ist groß und ganz schwarz.",n:"q2"},
+      {t:"Nein, er ist nicht groß und schwarz.",n:"q3"}
+    ]},
+  q2:{step:"Frage 2",q:"Hat der Vogel nur schwarzes Gefieder?",
+    a:[
+      {t:"Ja, er ist komplett schwarz.",r:"Rabenkrähe"},
+      {t:"Nein, er ist schwarz, hat aber auch weiße Stellen.",r:"Elster"}
+    ]},
+  q3:{step:"Frage 2",q:"Hat der Vogel eine rote Brust oder einen roten Bauch?",
+    a:[
+      {t:"Ja, er hat eine rote Brust oder einen roten Bauch.",n:"q4"},
+      {t:"Nein, er hat keine rote Brust und keinen roten Bauch.",n:"q5"}
+    ]},
+  q4:{step:"Frage 3",q:"Ist die rote Brust klein und rundlich?",
+    a:[
+      {t:"Ja, die rote Brust ist klein und rundlich.",r:"Rotkehlchen"},
+      {t:"Nein, der Vogel ist eher grünlich und hat eine gelbliche Brust.",r:"Grünfink"}
+    ]},
+  q5:{step:"Frage 3",q:"Ist der Vogel auffällig gelb gefärbt?",
+    a:[
+      {t:"Ja, er ist deutlich gelb gefärbt.",n:"q6"},
+      {t:"Nein, er ist nicht gelb gefärbt.",n:"q7"}
+    ]},
+  q6:{step:"Frage 4",q:"Hat der Vogel einen schwarzen Kopf?",
+    a:[
+      {t:"Ja, er hat einen schwarzen Kopf.",r:"Kohlmeise"},
+      {t:"Nein, er hat keinen schwarzen Kopf, sondern eine blaue Kappe.",r:"Blaumeise"}
+    ]},
+  q7:{step:"Frage 4",q:"Hat der Vogel ein schwarz-weißes Muster und klopft oft an Bäume?",
+    a:[
+      {t:"Ja, er hat ein schwarz-weißes Muster und klopft an Bäume.",r:"Buntspecht"},
+      {t:"Nein, er hat kein solches Muster und klopft nicht an Bäume.",n:"q8"}
+    ]},
+  q8:{step:"Frage 5",q:"Ist der Vogel braun oder grau und oft in der Stadt zu sehen?",
+    a:[
+      {t:"Ja, er ist braun oder grau und lebt oft in der Stadt.",n:"q9"},
+      {t:"Nein, er ist auffälliger gefärbt oder lebt eher im Wald.",n:"q10"}
+    ]},
+  q9:{step:"Frage 6",q:"Hat der Vogel einen einfarbig graubraunen Kopf?",
+    a:[
+      {t:"Ja, sein Kopf ist einfarbig graubraun.",r:"Haussperling (Spatz)"},
+      {t:"Nein, sein Kopf ist braun und hat einen dunklen Fleck an der Wange.",r:"Feldsperling"}
+    ]},
+  q10:{step:"Frage 6",q:"Ist der Vogel dunkel gefärbt und hat einen gelben Schnabel?",
+    a:[
+      {t:"Ja, er ist dunkel und hat einen gelben Schnabel.",r:"Amsel"},
+      {t:"Nein, er ist nicht komplett dunkel oder hat keinen gelben Schnabel.",n:"q11"}
+    ]},
+  q11:{step:"Frage 7",q:"Hat der Vogel einen graublauen Rücken und einen schwarzen Streifen durchs Auge?",
+    a:[
+      {t:"Ja, er hat einen graublauen Rücken und einen schwarzen Augenstreif.",r:"Kleiber"},
+      {t:"Nein, er hat keinen solchen Streifen oder keine graublaue Farbe.",n:"q12"}
+    ]},
+  q12:{step:"Frage 8",q:"Hat der Vogel blaue Flügel und einen schwarzen Streifen im Gesicht?",
+    a:[
+      {t:"Ja, er hat blaue Flügel und einen schwarzen Streifen im Gesicht.",r:"Eichelhäher"},
+      {t:"Nein, er hat eine rötliche Brust und einen dunklen Kopf.",r:"Buchfink"}
+    ]}
+};
+
+const birdNotes = {
+  "Rabenkrähe":"Großer schwarzer Vogel.",
+  "Elster":"Schwarz-weißer Vogel mit langem Schwanz.",
+  "Rotkehlchen":"Kleiner Vogel mit roter Brust.",
+  "Grünfink":"Grünlicher Vogel mit gelblichen Bereichen.",
+  "Kohlmeise":"Gelb mit schwarzem Kopf.",
+  "Blaumeise":"Klein, gelblich und mit blauer Kappe.",
+  "Buntspecht":"Schwarz-weiß gemustert, oft an Bäumen.",
+  "Haussperling (Spatz)":"Häufiger Stadtvogel.",
+  "Feldsperling":"Sperling mit braunem Kopf und Wangenfleck.",
+  "Amsel":"Dunkler Vogel mit gelbem Schnabel.",
+  "Kleiber":"Graublau mit dunklem Streifen durchs Auge.",
+  "Eichelhäher":"Braunrosa mit blauem Flügelfeld.",
+  "Buchfink":"Mit rötlicher Brust und dunklerem Kopf."
+};
+
+const birdImageCandidates = {
+  "Rabenkrähe": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Corvus_corone_2.JPG",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Corvus_corone_02.jpg"
+  ],
+  "Elster": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Pica_pica_-_01.jpg"
+  ],
+  "Rotkehlchen": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Erithacus_rubecula_with_cocked_head.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Erithacus_rubecula_with_cocked_head_-_cropped.jpg"
+  ],
+  "Grünfink": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Carduelis_chloris_-Fedderwardersiel%2C_Lower_Saxony%2C_Germany_-male-8.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Carduelis_chloris_-United_Kingdom_-male-8.jpg"
+  ],
+  "Kohlmeise": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Parus_major_male.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Great_tit_%28Parus_major%29_male.jpg"
+  ],
+  "Blaumeise": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Cyanistes_caeruleus_1.JPG",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Blue_Tit_%28Cyanistes_caeruleus%291.jpg"
+  ],
+  "Buntspecht": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Great_Spotted_Woodpecker_-_Dendrocopos_major_-_Male.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Great_Spotted_Woodpecker_-_Dendrocopos_major_-_Male_1.jpg"
+  ],
+  "Haussperling (Spatz)": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Passer_domesticus_male.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Passer_domesticus_%28male%29.jpg"
+  ],
+  "Feldsperling": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Passer_montanus_at_KL_%281%29.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Male_eurasian_tree_sparrow_in_field.jpg"
+  ],
+  "Amsel": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Blackbird_-_Turdus_merula_-_Male.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Turdus_merula_%28male%29_resting.jpg"
+  ],
+  "Kleiber": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Sitta_europaea01.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Sitta_europaea1.jpg"
+  ],
+  "Eichelhäher": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Garrulus_glandarius_1.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Jay_%28Garrulus_glandarius%29_%281%29.JPG"
+  ],
+  "Buchfink": [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Fringilla_coelebs_male.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Male_Chaffinch_-_Fringilla_coelebs.jpg"
+  ]
+};
+
+let current = "start";
+let history = [];
+let resultBird = null;
+
+function renderPathHtml(){
+  let html = '<div class="path-section"><div class="path-title">Dein Weg</div><div class="path-rail">';
+  html += '<span class="node done">Start</span>';
+
+  history.forEach(step => {
+    html += '<span class="arrow">→</span>';
+    html += `<span class="node done">${step.short}</span>`;
+  });
+
+  html += '<span class="arrow">→</span>';
+
+  if(resultBird){
+    html += `<span class="node current">${resultBird}</span>`;
+  } else {
+    const label = tree[current]?.step || "Aktuelle Frage";
+    html += `<span class="node current">${label}</span>`;
+  }
+
+  html += '</div>';
+
+  if(history.length){
+    html += '<div class="mini-list"><strong>Bisher gewählt:</strong><ol>';
+    history.forEach(step => {
+      html += `<li>${step.answerText}</li>`;
+    });
+    if(resultBird){
+      html += `<li><strong>Ergebnis: ${resultBird}</strong></li>`;
+    }
+    html += '</ol></div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function render(){
+  const app = document.getElementById("app");
+  const node = tree[current];
+  let html = `
+    <div class="question-box">
+      <div class="step">${node.step}</div>
+      <div class="question">${node.q}</div>
+      <div class="answers">
+  `;
+  node.a.forEach((ans,i)=>{
+    html += `<button class="answer" onclick="choose(${i})">${ans.t}</button>`;
+  });
+  html += `</div></div>`;
+  html += renderPathHtml();
+  app.innerHTML = html;
+}
+
+function choose(i){
+  const node = tree[current];
+  const ans = node.a[i];
+  history.push({
+    questionId: current,
+    answerIndex: i,
+    answerText: ans.t,
+    short: "Antwort"
+  });
+
+  if(ans.r){
+    resultBird = ans.r;
+    showResult(ans.r);
+  } else {
+    current = ans.n;
+    resultBird = null;
+    render();
+  }
+}
+
+function showResult(bird){
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="result">
+      <div class="result-label">Ergebnis</div>
+      <div class="bird-name">${bird}</div>
+      <div class="bird-note">${birdNotes[bird] || ""}</div>
+      <img id="bird-image" alt="Bild von ${bird}">
+      <div id="img-note" class="img-note">Bild wird geladen …</div>
+      <div class="controls">
+        <button onclick="restart()">Nochmal starten</button>
+        <button onclick="goBack()">Eine Frage zurück</button>
+      </div>
+    </div>
+    ${renderPathHtml()}
+  `;
+  loadBirdImage(bird);
+}
+
+function goBack(){
+  if(history.length === 0){
+    restart();
+    return;
+  }
+  history.pop();
+  resultBird = null;
+
+  if(history.length === 0){
+    current = "start";
+  } else {
+    let pos = "start";
+    for(const step of history){
+      const choice = tree[pos].a[step.answerIndex];
+      pos = choice.n || pos;
+    }
+    current = pos;
+  }
+  render();
+}
+
+function loadBirdImage(bird){
+  const candidates = birdImageCandidates[bird] || [];
+  const img = document.getElementById("bird-image");
+  const note = document.getElementById("img-note");
+  let index = 0;
+  if(!img) return;
+
+  function tryNext(){
+    if(index >= candidates.length){
+      img.style.display = "none";
+      note.textContent = "Das Bild konnte nicht geladen werden.";
+      return;
+    }
+    const src = candidates[index++];
+    img.onerror = tryNext;
+    img.onload = () => note.textContent = "Bildquelle: Wikimedia Commons";
+    img.src = src;
+  }
+  tryNext();
+}
+
+function restart(){
+  current = "start";
+  history = [];
+  resultBird = null;
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
