@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulation: Nährstoffresorption</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #eef6ff 0%, #f8fbff 100%);
+      color: #18324a;
+    }
+    .app {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 12px 28px rgba(16, 53, 89, 0.08);
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      text-align: center;
+      color: #145da0;
+      font-size: 2rem;
+    }
+    .subtitle {
+      margin: 0;
+      text-align: center;
+      font-size: 1.06rem;
+      line-height: 1.5;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .choice-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .surface-btn {
+      width: 100%;
+      border: 3px solid #cfe6fb;
+      border-radius: 18px;
+      background: #f7fbff;
+      padding: 16px;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      transition: 0.2s ease;
+    }
+    .surface-btn:hover {
+      transform: translateY(-1px);
+      border-color: #89c7ff;
+    }
+    .surface-btn.active {
+      border-color: #1fa2ff;
+      background: #eaf6ff;
+      box-shadow: 0 8px 18px rgba(31,162,255,0.14);
+    }
+    .surface-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .surface-btn strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #114b84;
+      font-size: 1.05rem;
+    }
+    .buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+    button.main,
+    button.secondary {
+      border: none;
+      border-radius: 16px;
+      padding: 13px 18px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button.main {
+      background: #1fa2ff;
+      color: #fff;
+    }
+    button.secondary {
+      background: #edf5fd;
+      color: #145da0;
+    }
+    .hint {
+      margin-top: 16px;
+      background: #fff8d7;
+      border-radius: 16px;
+      padding: 14px;
+      line-height: 1.5;
+    }
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 0.96rem;
+      margin-top: 8px;
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot.nutrient { background: #ffb703; }
+    .dot.absorbed { background: #2a9d8f; }
+    .dot.blood { background: #cf2f2f; }
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      min-height: 420px;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 3px solid #d8e8f7;
+      background: #f7fbff;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .results {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .result-box {
+      border-radius: 18px;
+      padding: 16px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .result-box:nth-child(1) { background: #eaf6ff; color: #114b84; }
+    .result-box:nth-child(2) { background: #eef8e8; color: #2c6b23; }
+    .result-box:nth-child(3) { background: #e8f7f4; color: #146c62; }
+    .result-box:nth-child(4) { background: #fdecec; color: #b42318; }
+    .big {
+      display: block;
+      font-size: 1.7rem;
+      margin-top: 6px;
+    }
+    .history-card {
+      margin-top: 18px;
+      border: 2px solid #d8e8f7;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #fbfdff;
+    }
+    .history-title {
+      margin: 0;
+      padding: 14px 16px;
+      background: #eef6ff;
+      color: #114b84;
+      font-size: 1.05rem;
+    }
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .history-table th,
+    .history-table td {
+      padding: 12px 10px;
+      text-align: center;
+      border-top: 1px solid #d8e8f7;
+    }
+    .history-table th {
+      background: #f8fbff;
+      color: #114b84;
+    }
+    .history-table td:first-child,
+    .history-table th:first-child {
+      text-align: left;
+      padding-left: 16px;
+      font-weight: bold;
+    }
+    @media (max-width: 930px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+      .results { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+      .history-table { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card">
+      <h1>Nährstoffaufnahme im Darm</h1>
+      <p class="subtitle">
+        Die gelben Teilchen sind Nährstoffe. Sie stoßen sich gegenseitig an und bewegen sich ständig weiter. Trifft ein Nährstoff auf die Schleimhaut, wird er aufgenommen. Nach <strong>20 Sekunden</strong> wird gezählt, wie viele Nährstoffe durch die Schleimhaut gelangt sind.
+      </p>
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <h2>Darmoberfläche wählen</h2>
+        <div class="choice-grid">
+          <button class="surface-btn active" data-surface="flach">
+            <strong>Flach</strong>
+          </button>
+          <button class="surface-btn" data-surface="zotten">
+            <strong>Falten und Zotten</strong>
+          </button>
+        </div>
+
+        <div class="buttons">
+          <button class="main" id="startBtn">20-Sekunden-Test starten</button>
+          <button class="secondary" id="resetBtn">Zurücksetzen</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Animation</h2>
+        <div class="legend">
+          <span><i class="dot nutrient"></i>Nährstoffe</span>
+          <span><i class="dot absorbed"></i>aufgenommen</span>
+          <span><i class="dot blood"></i>Blutgefäße</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="simCanvas" width="900" height="520"></canvas>
+        </div>
+
+        <div class="results">
+          <div class="result-box">Oberfläche<span class="big" id="surfaceName">Flach</span></div>
+          <div class="result-box">Zeit<span class="big" id="timeLeft">20.0 s</span></div>
+          <div class="result-box">Aufgenommen<span class="big" id="absorbedCount">0</span></div>
+          <div class="result-box">Insgesamt<span class="big" id="totalCount">0</span></div>
+        </div>
+
+        <div class="history-card">
+          <h3 class="history-title">Letzte 3 Messergebnisse</h3>
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Oberfläche</th>
+                <th>Messung 1</th>
+                <th>Messung 2</th>
+                <th>Messung 3</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Flach</td>
+                <td id="hist-flach-1">–</td>
+                <td id="hist-flach-2">–</td>
+                <td id="hist-flach-3">–</td>
+              </tr>
+              <tr>
+                <td>Falten und Zotten</td>
+                <td id="hist-zotten-1">–</td>
+                <td id="hist-zotten-2">–</td>
+                <td id="hist-zotten-3">–</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const surfaceButtons = document.querySelectorAll('.surface-btn');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const surfaceNameEl = document.getElementById('surfaceName');
+    const timeLeftEl = document.getElementById('timeLeft');
+    const absorbedCountEl = document.getElementById('absorbedCount');
+    const totalCountEl = document.getElementById('totalCount');
+    
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const lumenTop = 60;
+    const baseY = 290;
+    const particleRadius = 7;
+    const maxParticles = 53;
+    const spawnIntervalMs = 220;
+    const durationMs = 20000;
+
+    let currentSurface = 'flach';
+    let particles = [];
+    let totalSpawned = 0;
+    let absorbedBursts = [];
+    let absorbedParticles = [];
+    let absorbedTotal = 0;
+    let lastTime = 0;
+    let counting = false;
+    let startTime = 0;
+    let previousSpawn = 0;
+    let animationFrameId = 0;
+
+    const measurementHistory = {
+      flach: [],
+      zotten: []
+    };
+
+    function updateHistoryTable() {
+      ['flach', 'zotten'].forEach(type => {
+        for (let i = 0; i < 3; i++) {
+          const cell = document.getElementById(`hist-${type}-${i + 1}`);
+          cell.textContent = measurementHistory[type][i] ?? '–';
+        }
+      });
+    }
+
+    function saveMeasurementResult() {
+      const list = measurementHistory[currentSurface];
+      list.unshift(absorbedTotal);
+      if (list.length > 3) list.length = 3;
+      updateHistoryTable();
+    }
+
+    function setSurface(type) {
+      currentSurface = type;
+      surfaceButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.surface === type));
+      surfaceNameEl.textContent = type === 'flach' ? 'Flach' : 'Zotten';
+      absorbedParticles = [];
+      absorbedBursts = [];
+      draw();
+    }
+
+    function resetSimulation() {
+      totalSpawned = 0;
+      totalCountEl.textContent = '0';
+      particles = [];
+      absorbedParticles = [];
+      absorbedBursts = [];
+      absorbedTotal = 0;
+      counting = false;
+      startTime = 0;
+      previousSpawn = performance.now();
+      timeLeftEl.textContent = '20.0 s';
+      absorbedCountEl.textContent = '0';
+      lastTime = 0;
+      surfaceButtons.forEach(btn => btn.disabled = false);
+      draw();
+    }
+
+    function startSimulation() {
+      totalSpawned = 0;
+      absorbedTotal = 0;
+      totalCountEl.textContent = '0';
+      absorbedCountEl.textContent = '0';
+      counting = true;
+      startTime = performance.now();
+      surfaceButtons.forEach(btn => btn.disabled = true);
+    }
+
+    function ensureParticleFlow(now) {
+      if (now - previousSpawn >= spawnIntervalMs) {
+        spawnParticle();
+        previousSpawn = now;
+      }
+    }
+
+    function getSurfaceHeight(x) {
+      if (currentSurface === 'flach') {
+        return baseY;
+      }
+      const centers = [220, 450, 680];
+      const width = 95;
+      const peakHeight = 180;
+      let y = baseY;
+      for (const c of centers) {
+        const dx = Math.abs(x - c);
+        if (dx < width) {
+          const t = dx / width;
+          const bump = (1 - t * t) * peakHeight;
+          y = Math.min(y, baseY - bump);
+        }
+      }
+      return y;
+    }
+
+    function getSurfaceContactHeight(x) {
+      const baseSurface = getSurfaceHeight(x);
+      if (currentSurface !== 'zotten') {
+        return baseSurface;
+      }
+
+      const stripe = Math.round((x - 35) / 18);
+      const stripeX = 35 + stripe * 18;
+      const closeToHair = Math.abs(x - stripeX) < 6;
+
+      if (!closeToHair || stripeX < 35 || stripeX > W - 20) {
+        return baseSurface;
+      }
+
+      const hairLength = 22 + ((stripe % 3) * 4);
+      return baseSurface - hairLength;
+    }
+
+    function spawnParticle() {
+      if (particles.length >= maxParticles) return;
+      if (counting) {
+        totalSpawned += 1;
+        totalCountEl.textContent = String(totalSpawned);
+      }
+
+      const spawnFromTop = Math.random() < 0.35;
+      let x, y, speedX, speedY;
+
+      if (spawnFromTop) {
+        x = 40 + Math.random() * (W * 0.75);
+        y = -20 - Math.random() * 25;
+        speedX = 55 + Math.random() * 35;
+        speedY = 45 + Math.random() * 55;
+      } else {
+        x = -20 - Math.random() * 30;
+        y = 80 + Math.random() * 90;
+        speedX = 70 + Math.random() * 45;
+        speedY = -70 + Math.random() * 140;
+      }
+
+      particles.push({
+        x,
+        y,
+        vx: speedX,
+        vy: speedY,
+        r: particleRadius,
+      });
+    }
+
+    function absorbParticle(index, x, y) {
+      const source = particles[index];
+      particles.splice(index, 1);
+      if (counting) {
+        absorbedTotal += 1;
+        absorbedCountEl.textContent = String(absorbedTotal);
+      }
+      absorbedBursts.push({ x, y, life: 0.35 });
+
+      absorbedParticles.push({
+        x,
+        y,
+        phase: 'toBlood',
+        targetX: source.x,
+        targetY: currentSurface === 'flach' ? getFlatVesselY(source.x) : 453,
+        vx: 0,
+        vy: 0,
+        r: particleRadius,
+      });
+    }
+
+    function resolveParticleCollisions() {
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const a = particles[i];
+          const b = particles[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.hypot(dx, dy);
+          const minDist = a.r + b.r;
+          if (dist > 0 && dist < minDist) {
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const overlap = (minDist - dist) / 2;
+            a.x -= nx * overlap;
+            a.y -= ny * overlap;
+            b.x += nx * overlap;
+            b.y += ny * overlap;
+
+            const dvx = a.vx - b.vx;
+            const dvy = a.vy - b.vy;
+            const impact = dvx * nx + dvy * ny;
+            if (impact > 0) {
+              a.vx -= impact * nx;
+              a.vy -= impact * ny;
+              b.vx += impact * nx;
+              b.vy += impact * ny;
+            }
+          }
+        }
+      }
+    }
+
+    function updateParticles(dt) {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+
+        if (p.x < -40) {
+          p.x = -40;
+          p.vx = Math.abs(p.vx);
+        }
+        if (p.x > W + 20) {
+          particles.splice(i, 1);
+          continue;
+        }
+        if (p.y < -30) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        const surfaceY = getSurfaceContactHeight(p.x);
+        if (p.y + p.r >= surfaceY) {
+          absorbParticle(i, p.x, surfaceY - 3);
+        }
+      }
+
+      resolveParticleCollisions();
+    }
+
+    function updateBursts(dt) {
+      for (let i = absorbedBursts.length - 1; i >= 0; i--) {
+        absorbedBursts[i].life -= dt;
+        if (absorbedBursts[i].life <= 0) absorbedBursts.splice(i, 1);
+      }
+    }
+
+    function updateAbsorbedParticles(dt) {
+      for (let i = absorbedParticles.length - 1; i >= 0; i--) {
+        const p = absorbedParticles[i];
+
+        if (currentSurface === 'flach') {
+          if (p.phase === 'toBlood') {
+            const dx = p.targetX - p.x;
+            const dy = p.targetY - p.y;
+            const dist = Math.hypot(dx, dy);
+            const speed = 220;
+
+            if (dist < 6) {
+              p.phase = 'flowPath';
+              p.pathT = Math.max(0, Math.min(1, p.x / W));
+              p.pathSpeed = 0.22;
+              p.y = getFlatVesselY(p.x);
+            } else {
+              p.x += (dx / dist) * speed * dt;
+              p.y += (dy / dist) * speed * dt;
+            }
+          } else if (p.phase === 'flowPath') {
+            p.pathT += p.pathSpeed * dt;
+            if (p.pathT > 1.05) {
+              absorbedParticles.splice(i, 1);
+              continue;
+            }
+            p.x = p.pathT * W;
+            p.y = getFlatVesselY(p.x);
+          }
+        } else {
+          if (p.phase === 'toBlood') {
+            const target = getNearestFoldVesselPoint(p.x, p.y);
+            const dx = target.x - p.x;
+            const dy = target.y - p.y;
+            const dist = Math.hypot(dx, dy);
+            const speed = 220;
+
+            if (dist < 6) {
+              p.phase = 'flowFoldDown';
+              p.vesselX = target.vesselX;
+              p.side = target.side;
+              p.arcT = target.t;
+              p.x = target.x;
+              p.y = target.y;
+            } else {
+              p.x += (dx / dist) * speed * dt;
+              p.y += (dy / dist) * speed * dt;
+            }
+          } else if (p.phase === 'flowFoldDown') {
+            const delta = 0.9 * dt;
+            p.arcT += p.side === 'left' ? -delta : delta;
+
+            if (p.arcT < 0 || p.arcT > 1) {
+              p.phase = 'flowMain';
+              p.mainX = p.x;
+              p.mainSpeed = 140;
+            } else {
+              const pos = getFoldVesselPosition(p.vesselX, p.arcT);
+              p.x = pos.x;
+              p.y = pos.y;
+            }
+          } else if (p.phase === 'flowMain') {
+            p.mainX += p.mainSpeed * dt;
+            if (p.mainX > W + 30) {
+              absorbedParticles.splice(i, 1);
+              continue;
+            }
+            p.x = p.mainX;
+            p.y = getMainVesselY(p.x);
+          }
+        }
+      }
+    }
+
+    function getNearestFoldVesselPoint(x, y) {
+      const villi = [220, 450, 680];
+      let best = null;
+
+      for (const c of villi) {
+        const leftT = 0.82;
+        const rightT = 0.18;
+        const leftPoint = getFoldVesselPosition(c, leftT);
+        const rightPoint = getFoldVesselPosition(c, rightT);
+        const candidates = [
+          { ...leftPoint, vesselX: c, side: 'left', t: leftT },
+          { ...rightPoint, vesselX: c, side: 'right', t: rightT }
+        ];
+
+        for (const candidate of candidates) {
+          const dist = Math.hypot(candidate.x - x, candidate.y - y);
+          if (!best || dist < best.dist) {
+            best = { ...candidate, dist };
+          }
+        }
+      }
+
+      return best;
+    }
+
+    function getFoldVesselPosition(centerX, t) {
+      const radius = 28;
+      const topY = getSurfaceHeight(centerX) - 2;
+      const startX = centerX - radius;
+      const startY = 440;
+      const controlX = centerX;
+      const controlY = topY;
+      const endX = centerX + radius;
+      const endY = 440;
+      const mt = 1 - t;
+      return {
+        x: mt * mt * startX + 2 * mt * t * controlX + t * t * endX,
+        y: mt * mt * startY + 2 * mt * t * controlY + t * t * endY
+      };
+    }
+
+    function getMainVesselY(x) {
+      const t = x / W;
+      const p0 = { y: 448 };
+      const p1 = { y: 430 };
+      const p2 = { y: 470 };
+      const p3 = { y: 446 };
+      const p4 = { y: 422 };
+      const p5 = { y: 472 };
+      const p6 = { y: 444 };
+      const p7 = { y: 418 };
+      const p8 = { y: 458 };
+      const p9 = { y: 440 };
+
+      if (t <= 1/3) {
+        return cubicBezierY(t * 3, p0.y, p1.y, p2.y, p3.y);
+      } else if (t <= 2/3) {
+        return cubicBezierY((t - 1/3) * 3, p3.y, p4.y, p5.y, p6.y);
+      }
+      return cubicBezierY((t - 2/3) * 3, p6.y, p7.y, p8.y, p9.y);
+    }
+
+    function getFlatVesselY(x) {
+      const t = x / W;
+      const p0 = { x: 0, y: 410 };
+      const p1 = { x: 180, y: 396 };
+      const p2 = { x: 340, y: 424 };
+      const p3 = { x: 520, y: 404 };
+      const p4 = { x: 700, y: 384 };
+      const p5 = { x: 830, y: 418 };
+      const p6 = { x: W, y: 402 };
+
+      if (t <= 0.5) {
+        const u = t / 0.5;
+        return cubicBezierY(u, p0.y, p1.y, p2.y, p3.y);
+      }
+      const u = (t - 0.5) / 0.5;
+      return cubicBezierY(u, p3.y, p4.y, p5.y, p6.y);
+    }
+
+    function cubicBezierY(t, y0, y1, y2, y3) {
+      const mt = 1 - t;
+      return mt * mt * mt * y0 + 3 * mt * mt * t * y1 + 3 * mt * t * t * y2 + t * t * t * y3;
+    }
+
+    function drawBackground() {
+      const gradTop = ctx.createLinearGradient(0, 0, 0, baseY - 30);
+      gradTop.addColorStop(0, '#d8ebfb');
+      gradTop.addColorStop(1, '#f7fbff');
+      ctx.fillStyle = gradTop;
+      ctx.fillRect(0, 0, W, baseY - 25);
+
+      const gradBottom = ctx.createLinearGradient(0, baseY, 0, H);
+      gradBottom.addColorStop(0, '#ffe7d3');
+      gradBottom.addColorStop(1, '#ffd3b5');
+      ctx.fillStyle = gradBottom;
+      ctx.fillRect(0, baseY - 20, W, H - baseY + 20);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.beginPath();
+      ctx.roundRect(18, 16, 190, 34, 17);
+      ctx.fill();
+      ctx.fillStyle = '#17324a';
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText('Innere des Darms', 34, 39);
+    }
+
+    function drawBloodVessels() {
+      ctx.fillStyle = '#f3c6c6';
+      ctx.fillRect(0, 390, W, H - 390);
+
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      const vesselMain = '#cf2f2f';
+      const vesselInner = '#e45a5a';
+
+      if (currentSurface === 'zotten') {
+        ctx.strokeStyle = vesselMain;
+        ctx.lineWidth = 20;
+        ctx.beginPath();
+        ctx.moveTo(0, 448);
+        ctx.bezierCurveTo(120, 430, 210, 470, 320, 446);
+        ctx.bezierCurveTo(430, 422, 520, 472, 640, 444);
+        ctx.bezierCurveTo(750, 418, 830, 458, W, 440);
+        ctx.stroke();
+
+        ctx.strokeStyle = vesselInner;
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.moveTo(0, 448);
+        ctx.bezierCurveTo(120, 430, 210, 470, 320, 446);
+        ctx.bezierCurveTo(430, 422, 520, 472, 640, 444);
+        ctx.bezierCurveTo(750, 418, 830, 458, W, 440);
+        ctx.stroke();
+
+        const villi = [220, 450, 680];
+        for (const c of villi) {
+          const topY = getSurfaceHeight(c) - 2;
+          const radius = 28;
+
+          ctx.strokeStyle = vesselMain;
+          ctx.lineWidth = 16;
+          ctx.beginPath();
+          ctx.moveTo(c - radius, 440);
+          ctx.quadraticCurveTo(c, topY, c + radius, 440);
+          ctx.stroke();
+
+          ctx.strokeStyle = vesselInner;
+          ctx.lineWidth = 8;
+          ctx.beginPath();
+          ctx.moveTo(c - radius + 2, 440);
+          ctx.quadraticCurveTo(c, topY + 4, c + radius - 2, 440);
+          ctx.stroke();
+        }
+      } else {
+        ctx.strokeStyle = vesselMain;
+        ctx.lineWidth = 20;
+        ctx.beginPath();
+        ctx.moveTo(0, 410);
+        ctx.bezierCurveTo(180, 396, 340, 424, 520, 404);
+        ctx.bezierCurveTo(700, 384, 830, 418, W, 402);
+        ctx.stroke();
+
+        ctx.strokeStyle = vesselInner;
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.moveTo(0, 410);
+        ctx.bezierCurveTo(180, 396, 340, 424, 520, 404);
+        ctx.bezierCurveTo(700, 384, 830, 418, W, 402);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = 'rgba(255,255,255,0.82)';
+      ctx.beginPath();
+      ctx.roundRect(480, 472, 320, 32, 16);
+      ctx.fill();
+
+      ctx.fillStyle = '#7b1717';
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText('Blutgefäß transportiert Nährstoffe ab', 495, 494);
+
+      ctx.restore();
+    }
+
+    function drawSurface() {
+      ctx.save();
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = '#f28c28';
+      ctx.fillStyle = '#ffe8cf';
+
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      ctx.lineTo(0, getSurfaceHeight(0));
+      for (let x = 0; x <= W; x += 4) {
+        ctx.lineTo(x, getSurfaceHeight(x));
+      }
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(0, getSurfaceHeight(0));
+      for (let x = 0; x <= W; x += 4) {
+        ctx.lineTo(x, getSurfaceHeight(x));
+      }
+      ctx.stroke();
+
+      if (currentSurface === 'zotten') {
+        ctx.strokeStyle = '#f28c28';
+        ctx.lineWidth = 3;
+        for (let x = 35; x < W - 20; x += 18) {
+          const topY = getSurfaceHeight(x);
+          const hairLength = 22 + ((((x - 35) / 18) % 3) * 4);
+          ctx.beginPath();
+          ctx.moveTo(x, topY + 3);
+          ctx.lineTo(x, topY - hairLength);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      for (const p of particles) {
+        const g = ctx.createRadialGradient(p.x - 2, p.y - 2, 1, p.x, p.y, p.r + 1);
+        g.addColorStop(0, '#fff2b7');
+        g.addColorStop(0.68, '#ffb703');
+        g.addColorStop(1, '#d98500');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#b56a00';
+        ctx.stroke();
+      }
+
+      for (const p of absorbedParticles) {
+        const g = ctx.createRadialGradient(p.x - 2, p.y - 2, 1, p.x, p.y, p.r + 1);
+        g.addColorStop(0, '#b8f2e8');
+        g.addColorStop(0.68, '#2a9d8f');
+        g.addColorStop(1, '#166b63');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#166b63';
+        ctx.stroke();
+      }
+    }
+
+    function drawBursts() {
+      for (const b of absorbedBursts) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, b.life / 0.7);
+        ctx.fillStyle = '#2a9d8f';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y + 12, 8 + (0.7 - b.life) * 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      drawBackground();
+      drawSurface();
+      drawBloodVessels();
+      drawBursts();
+      drawParticles();
+    }
+
+    function loop(now) {
+      const dt = lastTime ? Math.min(0.033, (now - lastTime) / 1000) : 0.016;
+      lastTime = now;
+
+      ensureParticleFlow(now);
+      updateParticles(dt);
+      updateBursts(dt);
+      updateAbsorbedParticles(dt);
+
+      if (counting) {
+        const elapsed = now - startTime;
+        const remaining = Math.max(0, (durationMs - elapsed) / 1000);
+        timeLeftEl.textContent = remaining.toFixed(1) + ' s';
+
+        if (elapsed >= durationMs) {
+          counting = false;
+          timeLeftEl.textContent = '0.0 s';
+          surfaceButtons.forEach(btn => btn.disabled = false);
+          saveMeasurementResult();
+        }
+      } else {
+        timeLeftEl.textContent = '20.0 s';
+      }
+
+      draw();
+      animationFrameId = requestAnimationFrame(loop);
+    }
+
+    function roundRect(x, y, w, h, r, fill) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+      if (fill) ctx.fill();
+    }
+
+    surfaceButtons.forEach(btn => {
+      btn.addEventListener('click', () => setSurface(btn.dataset.surface));
+    });
+
+    startBtn.addEventListener('click', startSimulation);
+    resetBtn.addEventListener('click', () => {
+      setSurface('flach');
+      resetSimulation();
+    });
+
+    setSurface('flach');
+    resetSimulation();
+    updateHistoryTable();
+    previousSpawn = performance.now();
+    animationFrameId = requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
