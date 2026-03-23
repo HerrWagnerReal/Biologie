@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Petrischalen-Simulation</title>
+  <style>
+    body {
+      margin: 0;
+      background: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+
+    .wrapper {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(120, 160, 220, 0.3);
+      background: rgba(240, 248, 255, 0.7);
+      min-width: 200px;
+    }
+
+    canvas {
+      display: block;
+      background: transparent;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) {
+      filter: brightness(1.1);
+    }
+
+    button:disabled {
+      background: rgba(160, 180, 210, 0.9);
+      cursor: not-allowed;
+    }
+
+    #spawnInk {
+      background: rgba(10, 50, 160, 0.95);
+    }
+
+    #resetWater {
+      background: rgba(140, 200, 255, 0.95);
+      color: #003;
+    }
+
+    #hotWater {
+      background: rgba(200, 90, 0, 0.95);
+    }
+
+    .info {
+      font-size: 14px;
+      color: rgba(40, 70, 120, 0.9);
+      background: rgba(255, 255, 255, 0.85);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(120, 160, 220, 0.35);
+      text-align: center;
+    }
+
+    /* Legende */
+    .legend {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(120, 160, 220, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .color-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .water {
+      background: rgba(140, 200, 255, 0.9);
+    }
+
+    .ink {
+      background: rgba(10, 50, 160, 0.95);
+    }
+
+    .side-panel {
+      min-width: 180px;
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(120, 160, 220, 0.3);
+      background: rgba(240, 248, 255, 0.7);
+      color: #244;
+    }
+
+    .temp {
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <div class="controls">
+      <button id="spawnInk">Tinte hinzufügen</button>
+      <button id="resetWater">Wasser ersetzen</button>
+      <button id="hotWater">Mit heißem Wasser ersetzen</button>
+      <div class="info" id="inkCounter">Tintenzugaben: 0 / 3</div>
+
+      <!-- Legende -->
+      <div class="legend">
+        <div class="legend-item">
+          <span class="color-dot water"></span>
+          <span>Wasserteilchen</span>
+        </div>
+        <div class="legend-item">
+          <span class="color-dot ink"></span>
+          <span>Tintenteilchen</span>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="canvas" width="700" height="700"></canvas>
+
+    <div class="side-panel">
+      <div class="temp" id="temperature">Temperatur: 20°C</div>
+    </div>
+
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const spawnInkButton = document.getElementById("spawnInk");
+    const resetWaterButton = document.getElementById("resetWater");
+    const hotWaterButton = document.getElementById("hotWater");
+    const inkCounter = document.getElementById("inkCounter");
+    const temperatureDisplay = document.getElementById("temperature");
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const dishRadius = 300;
+
+    const particleCount = 160;
+    const particleRadius = 6;
+    const maxInkAdditions = 3;
+
+    let particles = [];
+    let inkAdditions = 0;
+    let currentTemperature = 20;
+
+    class Particle {
+      constructor(x, y, vx, vy, r, color, massMultiplier = 1) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.r = r;
+        this.color = color;
+        this.mass = r * r * massMultiplier;
+      }
+
+      move() {
+        this.x += this.vx;
+        this.y += this.vy;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.closePath();
+      }
+
+      wallCollision() {
+        const dx = this.x - centerX;
+        const dy = this.y - centerY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist + this.r >= dishRadius) {
+          const nx = dx / dist;
+          const ny = dy / dist;
+
+          const dot = this.vx * nx + this.vy * ny;
+
+          this.vx -= 2 * dot * nx;
+          this.vy -= 2 * dot * ny;
+
+          const overlap = dist + this.r - dishRadius;
+          this.x -= overlap * nx;
+          this.y -= overlap * ny;
+        }
+      }
+    }
+
+    function updateUI() {
+      inkCounter.textContent = `Tintenzugaben: ${inkAdditions} / ${maxInkAdditions}`;
+      spawnInkButton.disabled = inkAdditions >= maxInkAdditions;
+      temperatureDisplay.textContent = `Temperatur: ${currentTemperature}°C`;
+    }
+
+    function randomInDish(radius) {
+      while (true) {
+        const x = centerX + (Math.random() * 2 - 1) * (dishRadius - radius);
+        const y = centerY + (Math.random() * 2 - 1) * (dishRadius - radius);
+        const dx = x - centerX;
+        const dy = y - centerY;
+        if (Math.sqrt(dx * dx + dy * dy) < dishRadius - radius) {
+          return { x, y };
+        }
+      }
+    }
+
+    function isOverlapping(x, y, r) {
+      for (const p of particles) {
+        const dx = x - p.x;
+        const dy = y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < r + p.r + 2) return true;
+      }
+      return false;
+    }
+
+    function createWaterParticles(speedMultiplier = 1) {
+      for (let i = 0; i < particleCount; i++) {
+        let pos;
+        do {
+          pos = randomInDish(particleRadius);
+        } while (isOverlapping(pos.x, pos.y, particleRadius));
+
+        const angle = Math.random() * Math.PI * 2;
+        const speed = (1 + Math.random() * 1.5) * speedMultiplier;
+
+        particles.push(
+          new Particle(
+            pos.x,
+            pos.y,
+            Math.cos(angle) * speed,
+            Math.sin(angle) * speed,
+            particleRadius,
+            "rgba(140, 200, 255, 0.9)",
+            1
+          )
+        );
+      }
+    }
+
+    function spawnInkParticles(count = 60) {
+      if (inkAdditions >= maxInkAdditions) return;
+
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * 18;
+        const x = centerX + Math.cos(angle) * distance;
+        const y = centerY + Math.sin(angle) * distance;
+
+        particles.push(
+          new Particle(x, y, 0, 0, 7, "rgba(10, 50, 160, 0.95)", 4.5)
+        );
+      }
+
+      inkAdditions++;
+      updateUI();
+    }
+
+    function resetSimulation(speedMultiplier, temperature) {
+      particles = [];
+      inkAdditions = 0;
+      currentTemperature = temperature;
+      createWaterParticles(speedMultiplier);
+      updateUI();
+    }
+
+    function resolveParticleCollision(p1, p2) {
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const minDist = p1.r + p2.r;
+
+      if (dist < minDist && dist > 0) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        const dvx = p2.vx - p1.vx;
+        const dvy = p2.vy - p1.vy;
+        const relVel = dvx * nx + dvy * ny;
+
+        if (relVel < 0) {
+          const impulse = (2 * relVel) / (p1.mass + p2.mass);
+
+          p1.vx += impulse * p2.mass * nx;
+          p1.vy += impulse * p2.mass * ny;
+          p2.vx -= impulse * p1.mass * nx;
+          p2.vy -= impulse * p1.mass * ny;
+        }
+
+        const overlap = minDist - dist;
+        const correction = overlap / 2;
+
+        p1.x -= correction * nx;
+        p1.y -= correction * ny;
+        p2.x += correction * nx;
+        p2.y += correction * ny;
+      }
+    }
+
+    function drawDish() {
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, dishRadius, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(180, 220, 255, 0.12)";
+      ctx.fill();
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = "rgba(80, 140, 220, 0.9)";
+      ctx.shadowBlur = 20;
+      ctx.stroke();
+      ctx.closePath();
+      ctx.shadowBlur = 0;
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawDish();
+
+      for (const p of particles) {
+        p.move();
+        p.wallCollision();
+      }
+
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          resolveParticleCollision(particles[i], particles[j]);
+        }
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, dishRadius, 0, Math.PI * 2);
+      ctx.clip();
+
+      for (const p of particles) {
+        p.draw();
+      }
+
+      ctx.restore();
+      requestAnimationFrame(animate);
+    }
+
+    spawnInkButton.onclick = () => spawnInkParticles(60);
+    resetWaterButton.onclick = () => resetSimulation(1, 20);
+    hotWaterButton.onclick = () => resetSimulation(4, 80);
+
+    resetSimulation(1, 20);
+    animate();
+  </script>
+</body>
+</html>
