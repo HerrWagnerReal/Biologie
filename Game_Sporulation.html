@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>Myzel – Kampf im Joghurt</title>
+<style>
+  :root{
+    --bg:#102129;
+    --panel:#17313a;
+    --panel2:#1d3b45;
+    --text:#edf7f2;
+    --muted:#b9cfc6;
+    --accent:#b8e36f;
+    --accent2:#74c99b;
+    --danger:#ef7d72;
+    --warn:#f1c76a;
+    --cyan:#76d3dc;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+  html,body{margin:0;width:100%;height:100%;min-height:100%;background:radial-gradient(circle at 50% 15%,#21434a 0,#11262d 42%,#09171d 100%);color:var(--text);font-family:Inter,ui-rounded,"SF Pro Rounded","Segoe UI",system-ui,sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:none}
+  body{height:100dvh;min-height:0;display:flex;align-items:center;justify-content:center;padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));position:fixed;inset:0}
+  .app{width:min(1480px,100%);height:100%;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) clamp(250px,27vw,330px);gap:10px;align-items:center;margin:auto;overflow:hidden}
+  .stageShell{position:relative;width:min(100%,calc((100dvh - 16px) * 1100 / 760));aspect-ratio:1100 / 760;min-width:0;max-height:100%;justify-self:center;align-self:center;background:#0d1d23;border:1px solid #31525a;border-radius:20px;overflow:hidden;box-shadow:0 18px 60px #0008,inset 0 0 0 1px #ffffff08}
+  canvas{position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .topHud{position:absolute;top:14px;left:14px;right:14px;display:flex;gap:8px;pointer-events:none;z-index:3;flex-wrap:wrap}
+  .pill{background:#0b1a1fe6;border:1px solid #ffffff1d;border-radius:999px;padding:8px 12px;box-shadow:0 4px 20px #0005;backdrop-filter:blur(8px);font-size:14px;font-weight:760;letter-spacing:.02em}
+  .pill b{color:var(--accent);font-variant-numeric:tabular-nums}
+  .goal{margin-left:auto;max-width:min(58%,560px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sidebar{min-height:0;max-height:100%;display:flex;flex-direction:column;gap:8px;overflow:hidden;align-self:center}
+  .card{background:linear-gradient(180deg,#193640,#132b33);border:1px solid #355861;border-radius:16px;padding:12px;box-shadow:0 12px 36px #0004}
+  .titleCard{padding:12px 13px}
+  h1{margin:0 0 8px;font-size:22px;line-height:1;letter-spacing:-.035em}
+  .subtitle{display:none}
+  .statusGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:0}
+  .stat{background:#0c242be6;border-radius:12px;padding:8px;border:1px solid #ffffff0d}
+  .stat small{display:block;color:#a9c1ba;font-size:11px;text-transform:uppercase;letter-spacing:.09em;font-weight:800}
+  .stat strong{display:block;font-size:18px;margin-top:1px;font-variant-numeric:tabular-nums}
+  .digestibility{margin-top:7px;background:#0c242be6;border-radius:12px;padding:8px;border:1px solid #ffffff0d}
+  .digestibilityHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+  .digestibilityHead small{color:#a9c1ba;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+  .digestibilityHead strong{font-size:13px;font-variant-numeric:tabular-nums;color:#eaf6ef}
+  .digestibilityTrack{height:12px;border-radius:999px;background:#07191ee6;border:1px solid #ffffff12;overflow:hidden}
+  .digestibilityFill{height:100%;width:100%;border-radius:inherit;background:linear-gradient(90deg,#d4ee82,#7fcf78);transition:width .32s ease,background .32s ease}
+  .digestibilityNote{display:none}
+  .controls{display:grid;gap:7px}
+  button{appearance:none;border:0;border-radius:12px;padding:11px 12px;font:800 13px/1.15 inherit;color:#102019;background:var(--accent);box-shadow:inset 0 -2px 0 #0002,0 6px 18px #0003;cursor:pointer;transition:transform .08s ease,filter .1s ease,opacity .1s ease;text-align:left}
+  button:active{transform:translateY(1px) scale(.99)}
+  button.secondary{background:#274952;color:#eef9f4;border:1px solid #47717b}
+  button.warn{background:var(--warn);color:#3e2b0a}
+  button.danger{background:#f08a7e;color:#451512}
+  button.active{outline:3px solid #dff9a8;filter:brightness(1.08)}
+  button:disabled{opacity:.38;cursor:not-allowed;filter:saturate(.5)}
+  button .cost{float:right;font-weight:900;opacity:.85}
+  .mission{display:none!important;font-size:13px;line-height:1.45;color:#d8e7e2}
+  .mission strong{color:#fff}
+  .mission .step{display:flex;gap:10px;margin:8px 0;align-items:flex-start}
+  .dot{width:18px;height:18px;border-radius:50%;background:#284a53;border:1px solid #527781;display:grid;place-items:center;font-size:11px;font-weight:900;flex:0 0 auto;margin-top:1px}
+  .step.done .dot{background:var(--accent);border-color:var(--accent);color:#16301c}
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;color:#c2d4ce}
+  .legend div{display:flex;align-items:center;gap:7px;background:#0d252ce6;padding:7px 8px;border-radius:10px}
+  .swatch{width:13px;height:13px;border-radius:50%;flex:0 0 auto}
+  .footerCard{display:none!important}
+  .difficultyInfo{font-size:12px;color:#c7d8d3;line-height:1.35;margin-bottom:10px}
+  .difficultyTitle{font-size:14px;font-weight:900;margin-bottom:8px;letter-spacing:.03em}
+  .diffButtons{display:grid;grid-template-columns:1fr;gap:8px}
+  .diffButtons button{padding:10px 12px}
+  .diffButtons small{display:block;font-size:11px;opacity:.84;margin-top:4px;font-weight:700}
+  .warningBanner{position:absolute;left:50%;top:78px;transform:translate(-50%,-10px) scale(.98);min-width:min(520px,78%);max-width:82%;padding:12px 18px;border-radius:16px;background:rgba(80,35,28,.93);border:1px solid rgba(255,185,139,.72);box-shadow:0 12px 34px #0007;backdrop-filter:blur(8px);color:#fff7eb;text-align:center;font-size:16px;font-weight:900;letter-spacing:.01em;line-height:1.22;opacity:0;transition:opacity .16s ease,transform .16s ease;pointer-events:none;z-index:6}
+  .warningBanner.show{opacity:1;transform:translate(-50%,0) scale(1)}
+  .warningBanner.surface{background:rgba(30,73,58,.94);border-color:rgba(184,227,111,.82);color:#efffd7}
+  .warningBanner.toxin{background:rgba(25,69,78,.95);border-color:rgba(118,211,220,.82);color:#e9fcff}
+  .toast{position:absolute;left:50%;bottom:18px;transform:translate(-50%,15px);background:#08171dea;border:1px solid #ffffff25;padding:10px 15px;border-radius:999px;font-size:13px;font-weight:760;opacity:0;transition:.18s ease;pointer-events:none;z-index:4;white-space:nowrap;max-width:80%;overflow:hidden;text-overflow:ellipsis}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .overlay{position:absolute;inset:0;display:none;place-items:center;background:#061318d9;backdrop-filter:blur(7px);z-index:10;padding:24px}
+  .overlay.show{display:grid}
+  .modal{width:min(560px,92%);background:#18333c;border:1px solid #41656f;border-radius:24px;padding:24px;text-align:center;box-shadow:0 25px 90px #000b}
+  .modal h2{margin:0 0 10px;font-size:34px;letter-spacing:-.04em}
+  .modal p{color:#d0e2dc;line-height:1.45;margin:0 0 18px}
+  .modal button{display:inline-block;text-align:center;min-width:180px}
+  .startScreen{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));background:radial-gradient(circle at 50% 25%,rgba(39,78,82,.96),rgba(8,24,29,.985) 58%,rgba(4,14,18,.995));overflow:hidden;touch-action:none}
+  .startScreen.show{display:flex}
+  .startPanel{width:min(940px,98vw);max-height:calc(100dvh - 16px);overflow:hidden;background:linear-gradient(180deg,#193640,#10272f);border:1px solid #456973;border-radius:22px;padding:18px 20px;box-shadow:0 24px 70px #000b}
+  .startPanel h2{margin:0 0 4px;font-size:clamp(28px,4vw,42px);letter-spacing:-.05em}
+  .startLead{margin:0 0 12px;color:#bcd1ca;font-size:14px}
+  .instructionToggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin:0 0 10px;padding:9px 12px;background:#274952;color:#eef9f4;border:1px solid #47717b;box-shadow:none}
+  .instructionToggle::after{content:'▾';font-size:13px;transition:transform .16s ease}
+  .instructionToggle.open::after{transform:rotate(180deg)}
+  .startGrid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(270px,.88fr);gap:10px;align-items:start}
+  .howTo,.difficultySelect{background:#0c252ce6;border:1px solid #ffffff12;border-radius:16px;padding:12px 14px;min-width:0}
+  .howTo{display:none}
+  .howTo.show{display:block}
+  .howTo:not(.show)+.difficultySelect{grid-column:1 / -1}
+  .menuDiffs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .startPanel h3{margin:0 0 8px;font-size:15px}
+  .howTo ol{margin:0;padding-left:19px;color:#d9e8e3;line-height:1.32;font-size:12px}
+  .howTo li+li{margin-top:5px}
+  .menuHint{margin-top:8px;padding:8px 9px;border-radius:10px;background:#173a42;color:#c8ddd6;font-size:11px;line-height:1.25}
+  .menuDiffs{display:grid;gap:7px}
+  .menuDiffs button{width:100%;text-align:left}
+  .menuDiffs button.selected{outline:3px solid #dff9a8;filter:brightness(1.08)}
+  .menuDiffs small{display:block;font-size:10px;opacity:.82;margin-top:3px;font-weight:700}
+  .lockText{display:block;color:#efc86f;font-size:11px;margin-top:5px;font-weight:800}
+  .startActions{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .startActions button{min-width:180px;text-align:center}
+  .currentDiff{font-size:12px;color:#bdd1cb;margin-right:auto}
+  .sidebarDifficulty{display:none!important}
+  .legendCard{display:none!important}
+  @media (max-width: 1050px){
+    .app{grid-template-columns:minmax(0,1fr) clamp(245px,29vw,290px);gap:8px}
+    .pill{font-size:12px;padding:7px 9px}
+    .topHud{top:10px;left:10px;right:10px;gap:6px}
+    .goal{display:none}
+    .card{padding:10px}
+    .titleCard{padding:10px}
+    h1{font-size:19px;margin-bottom:7px}
+    button{padding:10px 10px;font-size:12px}
+    .digestibilityHead small{font-size:9px}
+    .digestibilityHead strong{font-size:12px}
+  }
+  @media (max-width: 760px){
+    .app{grid-template-columns:minmax(0,1fr) 225px;gap:6px}
+    .sidebar{gap:6px}
+    .card{padding:8px;border-radius:12px}
+    .titleCard{padding:8px}
+    h1{font-size:17px}
+    .stat{padding:6px}
+    .stat small{font-size:9px}
+    .stat strong{font-size:15px}
+    .digestibility{padding:6px;margin-top:5px}
+    .controls{gap:5px}
+    button{padding:8px 8px;font-size:11px}
+    .startPanel{padding:14px}
+    .startGrid{grid-template-columns:minmax(0,1fr) minmax(230px,.9fr)}
+    .menuDiffs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media (max-width: 620px){
+    .app{grid-template-columns:minmax(0,1fr) 185px}
+    .topHud .pill:nth-child(2){display:none}
+    .pill{font-size:10px;padding:5px 7px}
+    .startPanel{padding:10px}
+    .startPanel h2{font-size:26px}
+    .startLead{font-size:12px;margin-bottom:8px}
+    .startGrid{grid-template-columns:1fr}
+    .howTo:not(.show)+.difficultySelect{grid-column:auto}
+    .menuDiffs{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .howTo ol{font-size:10px;line-height:1.22}
+    .menuHint{display:none}
+    .startActions{margin-top:7px}
+  }
+
+  @media (pointer: coarse){
+    /* Touchgeräte nutzen die kontextsensitive Spielfläche statt separater Modi. */
+    #growBtn,#toxinBtn{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="startScreen show" id="startScreen">
+  <div class="startPanel">
+    <h2>MYZEL</h2>
+    <p class="startLead">Breite deinen Schimmelpilz im Joghurt aus und erreiche die Oberfläche.</p>
+    <button type="button" class="instructionToggle" id="instructionToggle" aria-expanded="false" aria-controls="howToPanel">Spielanleitung anzeigen</button>
+    <div class="startGrid">
+      <section class="howTo" id="howToPanel">
+        <h3>Kurze Spielanleitung</h3>
+        <ol>
+          <li><strong>Wachse:</strong> Platziere neue Pilzzellen an bestehenden Zellen. Jede lebende Zelle erzeugt Stoffwechselprodukte.</li>
+          <li><strong>Verzweige dich:</strong> Erreiche alle drei markierten Bereiche an der Oberfläche mit getrennten Hyphen.</li>
+          <li><strong>Verteidige dich:</strong> Auf dem iPad genügt ein Tipp direkt auf eine eigene Pilzzelle: Sie setzt automatisch Mykotoxin frei. Der grüne Wirkstofffleck schädigt Bakterien und Fremdpilze über mehrere Sekunden. Jede Freisetzung senkt außerdem die angezeigte Joghurt-Bekömmlichkeit – diese Anzeige hat keinen Einfluss auf Sieg oder Niederlage.</li>
+          <li><strong>Sporuliere:</strong> Baue für 120 Stoffwechselprodukte den Sporenträger und produziere 20 Sporen. Zwischen zwei Sporen liegt 1 Sekunde Cooldown.</li>
+          <li><strong>Achtung:</strong> Sobald 5 eigene Pilzzellen abgestorben sind, ist das Spiel verloren.</li>
+        </ol>
+        <div class="menuHint">Touch: freie Stelle nahe dem Myzel = neue Zelle · eigene Zelle = Mykotoxin · Sporenträger = Spore. Maus/Tastatur: 1 = Wachstum, 2 = Mykotoxin.</div>
+      </section>
+      <section class="difficultySelect">
+        <h3>Schwierigkeit wählen</h3>
+        <div class="menuDiffs">
+          <button type="button" id="menuIntro">Einführung<small>Weniger Konkurrenz – zum Kennenlernen</small></button>
+          <button type="button" id="menuD1">Stufe 1<small>Etwas mehr Bakterien und Fremdpilze</small><span class="lockText" id="lockD1"></span></button>
+          <button type="button" id="menuD2">Stufe 2<small>Deutlich mehr Konkurrenz</small><span class="lockText" id="lockD2"></span></button>
+          <button type="button" id="menuD3">Stufe 3<small>Sehr viele Bakterien und Fremdpilze</small><span class="lockText" id="lockD3"></span></button>
+        </div>
+      </section>
+    </div>
+    <div class="startActions">
+      <div class="currentDiff" id="menuSelectionText">Gewählt: Einführung</div>
+      <button type="button" id="startGameBtn">Spiel starten</button>
+    </div>
+  </div>
+</div>
+<div class="app">
+  <section class="stageShell" id="stageShell">
+    <canvas id="game" width="1100" height="760" aria-label="Mikroskopisches Spielfeld im Joghurt"></canvas>
+    <div class="topHud">
+      <div class="pill">Stoffwechselprodukte: <b id="hudRes">0</b></div>
+      <div class="pill">Myzelzellen: <b id="hudCells">0</b></div>
+      <div class="pill">Verluste: <b id="hudDead">0</b>/5</div>
+      <div class="pill">Sporen: <b id="hudSpores">0</b>/20</div>
+      <div class="pill">Ziele: <b id="hudZones">0/3</b></div>
+      <div class="pill goal" id="hudGoal">Ziel: Erreiche 3 Oberflächenbereiche mit Verzweigungen</div>
+    </div>
+    <div class="warningBanner" id="warningBanner"></div>
+    <div class="toast" id="toast"></div>
+    <div class="overlay" id="overlay">
+      <div class="modal">
+        <h2 id="endTitle">Geschafft</h2>
+        <p id="endText"></p>
+        <button id="restartModal">Zum Startmenü</button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="sidebar">
+    <div class="card titleCard">
+      <h1>MYZEL</h1>
+      <div class="subtitle">Mikroskopischer Konkurrenzkampf im Joghurt</div>
+      <div class="statusGrid">
+        <div class="stat"><small>Produktion</small><strong id="prodStat">0/s</strong></div>
+        <div class="stat"><small>Bedrohung</small><strong id="threatStat">niedrig</strong></div>
+      </div>
+      <div class="digestibility" title="Didaktische Anzeige ohne Einfluss auf die Spielmechanik">
+        <div class="digestibilityHead"><small>Joghurt-Bekömmlichkeit</small><strong id="digestibilityValue">100 %</strong></div>
+        <div class="digestibilityTrack"><div class="digestibilityFill" id="digestibilityFill"></div></div>
+        <span class="digestibilityNote">Sinkt bei jeder Mykotoxin-Freisetzung · ohne Spieleffekt</span>
+      </div>
+    </div>
+
+    <div class="card controls">
+      <button id="growBtn">Neue Zelle platzieren <span class="cost">12</span></button>
+      <button id="toxinBtn" class="secondary">Mykotoxin-Modus <span class="cost">10</span></button>
+      <button id="carrierBtn" class="warn" disabled>Pinselschimmel-Sporenträger bilden <span class="cost">120</span></button>
+      <button id="sporeBtn" class="secondary" disabled>Spore produzieren <span class="cost">8</span></button>
+      <button id="restartBtn" class="secondary">Zum Startmenü</button>
+    </div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // Kiosk-like interaction for iPad: keep all gestures inside the game.
+  ['contextmenu','selectstart','dragstart','dblclick'].forEach(type => {
+    document.addEventListener(type, e => e.preventDefault(), {passive:false});
+  });
+  ['gesturestart','gesturechange','gestureend'].forEach(type => {
+    document.addEventListener(type, e => e.preventDefault(), {passive:false});
+  });
+  document.addEventListener('touchmove', e => e.preventDefault(), {passive:false});
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const SURFACE_Y = 220;
+  const ROOT_ID = 1;
+  const GROW_COST = 12, TOXIN_COST = 10, CARRIER_COST = 120, SPORE_COST = 8;
+  const SPORE_TARGET = 20, LINK_MAX = 86, MIN_GAP = 34, MAX_DEAD_CELLS = 5;
+  const TOXIN_FIELD_LIFE = 7.5, TOXIN_FIELD_RADIUS = 108, SPORE_COOLDOWN = 1.0;
+  const RIVAL_MOLD_MAX_CELLS = 8, RIVAL_MOLD_MIN_GAP = 40, RIVAL_MOLD_LINK_MIN = 45, RIVAL_MOLD_LINK_MAX = 66;
+  const UNLOCK_KEY = 'myzel_difficulties_unlocked';
+  const DIFFICULTY_CONFIGS = {
+    intro:{label:'Einführung', initialBacteria:4, initialMold:2, spawnMin:6.0, spawnMax:10.0, bonusSpawn:0.18, budRate:0.045},
+    d1:{label:'Stufe 1', initialBacteria:5, initialMold:3, spawnMin:5.2, spawnMax:8.5, bonusSpawn:0.28, budRate:0.060},
+    d2:{label:'Stufe 2', initialBacteria:7, initialMold:4, spawnMin:4.6, spawnMax:7.3, bonusSpawn:0.40, budRate:0.078},
+    d3:{label:'Stufe 3', initialBacteria:9, initialMold:6, spawnMin:3.8, spawnMax:6.0, bonusSpawn:0.54, budRate:0.098}
+  };
+  const SURFACE_ZONES = [
+    {id:1,label:'A',x:W*0.21,y:SURFACE_Y+52,w:170,h:96},
+    {id:2,label:'B',x:W*0.50,y:SURFACE_Y+45,w:180,h:96},
+    {id:3,label:'C',x:W*0.79,y:SURFACE_Y+52,w:170,h:96}
+  ];
+
+  const $ = id => document.getElementById(id);
+  const ui = {
+    res:$('hudRes'), cells:$('hudCells'), dead:$('hudDead'), spores:$('hudSpores'), zones:$('hudZones'), goal:$('hudGoal'), prod:$('prodStat'), threat:$('threatStat'),
+    digestibilityValue:$('digestibilityValue'), digestibilityFill:$('digestibilityFill'),
+    grow:$('growBtn'), toxin:$('toxinBtn'), carrier:$('carrierBtn'), spore:$('sporeBtn'), restart:$('restartBtn'),
+    toast:$('toast'), warning:$('warningBanner'), overlay:$('overlay'), endTitle:$('endTitle'), endText:$('endText'), restartModal:$('restartModal'),
+    startScreen:$('startScreen'), startGame:$('startGameBtn'), menuSelectionText:$('menuSelectionText'),
+    menuDiffButtons:{intro:$('menuIntro'),d1:$('menuD1'),d2:$('menuD2'),d3:$('menuD3')},
+    menuLocks:{d1:$('lockD1'),d2:$('lockD2'),d3:$('lockD3')},
+    instructionToggle:$('instructionToggle'), howToPanel:$('howToPanel')
+  };
+
+  let state;
+  let last = performance.now();
+  let toastTimer = 0;
+  let warningTimer = 0;
+  let warningQueue = [];
+  let warningActive = false;
+  let pointer = {x:0,y:0,inside:false};
+  let difficultiesUnlocked = localStorage.getItem(UNLOCK_KEY) === '1';
+  let currentDifficulty = difficultiesUnlocked ? 'd1' : 'intro';
+  let menuDifficulty = currentDifficulty;
+  let menuOpen = true;
+
+  const rnd = (a,b)=>a+Math.random()*(b-a);
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const choice=a=>a[(Math.random()*a.length)|0];
+
+  function getConfig(){ return DIFFICULTY_CONFIGS[currentDifficulty] || DIFFICULTY_CONFIGS.intro; }
+
+  function newState(){
+    const root = {id:ROOT_ID,x:W/2,y:H-92,hp:100,maxHp:100,parent:null,born:0,cool:0,dead:false};
+    return {
+      time:0, resource:48, spores:0, cells:[root], enemies:[], pulses:[], toxinFields:[], particles:[], mode:'grow',
+      nextId:2, nextMoldCellId:1, nextMoldColonyId:1, nextSpawn:5.5, carrier:false, carrierCell:null, reached:false, won:false, lost:false,
+      shake:0, flash:0, targetProgress:null, zoneCount:0, reachedZoneIds:[], surfaceReachCount:0,
+      wasUnderAttack:false, attackWarningCooldown:0, toxinHintShown:false, sporeCooldown:0,
+      digestibility:100, toxinUses:0
+    };
+  }
+
+  function getCell(id){ return state.cells.find(c => c.id === id) || null; }
+  function livingCells(){ return state.cells.filter(c=>!c.dead); }
+
+  function rootChildrenCount(){
+    return state.cells.filter(c => !c.dead && c.parent === ROOT_ID).length;
+  }
+
+  function showToast(msg){
+    ui.toast.textContent=msg;
+    ui.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>ui.toast.classList.remove('show'),1450);
+  }
+
+  function showWarning(msg,type='danger',duration=1750){
+    warningQueue.push({msg,type,duration});
+    if(!warningActive) playNextWarning();
+  }
+
+  function playNextWarning(){
+    if(!warningQueue.length){
+      warningActive=false;
+      ui.warning.classList.remove('show','surface','toxin');
+      return;
+    }
+    warningActive=true;
+    const item=warningQueue.shift();
+    ui.warning.textContent=item.msg;
+    ui.warning.classList.remove('surface','toxin');
+    if(item.type==='surface') ui.warning.classList.add('surface');
+    if(item.type==='toxin') ui.warning.classList.add('toxin');
+    requestAnimationFrame(()=>ui.warning.classList.add('show'));
+    clearTimeout(warningTimer);
+    warningTimer=setTimeout(()=>{
+      ui.warning.classList.remove('show');
+      setTimeout(playNextWarning,180);
+    },item.duration);
+  }
+
+  function resetWarnings(){
+    clearTimeout(warningTimer);
+    warningQueue=[];
+    warningActive=false;
+    ui.warning.classList.remove('show','surface','toxin');
+    ui.warning.textContent='';
+  }
+
+  function announceSurfaceReach(){
+    state.surfaceReachCount=Math.min(3,state.surfaceReachCount+1);
+    const words=['erste','zweite','dritte'];
+    showWarning(`Deine ${words[state.surfaceReachCount-1]} Hyphe hat die Oberfläche erreicht.`,'surface',1900);
+  }
+
+  function setMode(mode){
+    state.mode=mode;
+    ui.grow.classList.toggle('active',mode==='grow');
+    ui.toxin.classList.toggle('active',mode==='toxin');
+  }
+
+  function nearestCell(x,y,max=Infinity){
+    let best=null, bd=max;
+    for(const c of state.cells){
+      if(c.dead) continue;
+      const d=Math.hypot(c.x-x,c.y-y);
+      if(d<bd){bd=d;best=c;}
+    }
+    return {cell:best,d:bd};
+  }
+
+  function canPlace(x,y){
+    if(y<SURFACE_Y+18 || y>H-34 || x<45 || x>W-45) return {ok:false};
+    const n=nearestCell(x,y,LINK_MAX);
+    if(!n.cell || n.d<MIN_GAP) return {ok:false,parent:n.cell};
+    for(const c of state.cells){
+      if(!c.dead && Math.hypot(c.x-x,c.y-y)<MIN_GAP) return {ok:false,parent:n.cell};
+    }
+    return {ok:true,parent:n.cell};
+  }
+
+  function addCell(x,y){
+    const p=canPlace(x,y);
+    if(!p.ok){showToast('Zu weit entfernt oder kein Platz');return;}
+    if(state.resource<GROW_COST){showToast('Zu wenig Stoffwechselprodukte');return;}
+    const before = state.targetProgress || computeZoneStatus();
+    state.resource-=GROW_COST;
+    const c={id:state.nextId++,x,y,hp:100,maxHp:100,parent:p.parent.id,born:state.time,cool:0,dead:false};
+    state.cells.push(c);
+    burst(x,y,'#b8e36f',10,38);
+    const progress = computeZoneStatus();
+    const newlyReached = SURFACE_ZONES.filter((zone,i)=>(before.zoneBranches[i]?.length||0)===0 && progress.zoneBranches[i].length>0);
+    if(newlyReached.length){
+      for(const zone of newlyReached){
+        if(!state.reachedZoneIds.includes(zone.id)){
+          state.reachedZoneIds.push(zone.id);
+          announceSurfaceReach();
+        }
+      }
+    }
+    state.targetProgress = progress;
+    state.zoneCount = progress.zoneCount;
+    if(progress.reached && !state.reached){
+      state.reached=true;
+      showToast('Alle 3 Zielbereiche über getrennte Äste erreicht');
+    }
+  }
+
+  function damageEnemy(e, amount){
+    if(!e || e.dead || amount<=0) return false;
+    e.hp=Math.max(0,e.hp-amount);
+    if(e.hp<=0){
+      e.dead=true;
+      state.resource+=e.type==='bacteria'?5:9;
+      burst(e.x,e.y,e.type==='bacteria'?'#f08b75':'#bd79d6',14,60);
+      return true;
+    }
+    return false;
+  }
+
+  function toxinAt(cell){
+    if(cell.cool>0){showToast('Diese Zelle regeneriert noch');return;}
+    if(state.resource<TOXIN_COST){showToast('Zu wenig Stoffwechselprodukte');return;}
+    state.resource-=TOXIN_COST;
+    cell.cool=2.1;
+
+    // Rein didaktische Anzeige: Mykotoxine verschlechtern die Bekömmlichkeit,
+    // verändern aber keinerlei Spielwerte oder Sieg-/Niederlagebedingungen.
+    state.toxinUses++;
+    state.digestibility=Math.max(0,100-state.toxinUses*10);
+
+    // Sichtbarer Freisetzungspuls plus länger wirksamer Mykotoxin-Fleck.
+    state.pulses.push({x:cell.x,y:cell.y,r:5,maxR:TOXIN_FIELD_RADIUS,life:.72,maxLife:.72});
+    state.toxinFields.push({
+      x:cell.x,y:cell.y,r:TOXIN_FIELD_RADIUS,
+      life:TOXIN_FIELD_LIFE,maxLife:TOXIN_FIELD_LIFE,
+      seed:rnd(0,Math.PI*2)
+    });
+    burst(cell.x,cell.y,'#79bd63',18,80);
+
+    let hits=0;
+    for(const e of state.enemies){
+      if(e.dead) continue;
+      const d=Math.hypot(e.x-cell.x,e.y-cell.y);
+      if(d<=TOXIN_FIELD_RADIUS){
+        // Der erste Freisetzungsschub ist stark; der Fleck wirkt danach weiter.
+        damageEnemy(e,(e.type==='bacteria'?95:58)*(1-d/270));
+        hits++;
+      }
+    }
+    if(hits===0) showToast('Mykotoxin bleibt an dieser Stelle aktiv');
+  }
+
+  function randomEdgePosition(){
+    const side=choice(['left','right','top']);
+    if(side==='left') return {x:35,y:rnd(150,H-90)};
+    if(side==='right') return {x:W-35,y:rnd(150,H-90)};
+    return {x:rnd(60,W-60),y:rnd(140,210)};
+  }
+
+  function spawnBacterium(x,y,edge=true){
+    if(edge){ const p=randomEdgePosition(); x=p.x; y=p.y; }
+    const a=rnd(0,Math.PI*2);
+    state.enemies.push({
+      type:'bacteria',x,y,
+      vx:Math.cos(a)*rnd(12,18),vy:Math.sin(a)*rnd(12,18),
+      hp:58,maxHp:58,r:11,dead:false,
+      phase:rnd(0,Math.PI*2),targetId:null
+    });
+  }
+
+  function livingRivalMoldCells(){
+    return state.enemies.filter(e=>e.type==='mold'&&!e.dead);
+  }
+
+  function getRivalMoldCell(id){
+    return state.enemies.find(e=>e.type==='mold'&&e.moldCellId===id) || null;
+  }
+
+  function rivalColonySize(colonyId){
+    return state.enemies.filter(e=>e.type==='mold'&&!e.dead&&e.colonyId===colonyId).length;
+  }
+
+  function rivalMoldPositionFree(x,y,ignoreId=null){
+    if(x<48 || x>W-48 || y<SURFACE_Y+30 || y>H-48) return false;
+    for(const m of state.enemies){
+      if(m.type!=='mold' || m.dead || m.moldCellId===ignoreId) continue;
+      if(Math.hypot(m.x-x,m.y-y)<RIVAL_MOLD_MIN_GAP) return false;
+    }
+    return true;
+  }
+
+  function createRivalMoldCell(x,y,colonyId,parentMoldId=null){
+    const cell={
+      type:'mold',x,y,vx:0,vy:0,
+      hp:118,maxHp:118,r:16,dead:false,
+      phase:rnd(0,Math.PI*2),
+      colonyId,
+      moldCellId:state.nextMoldCellId++,
+      parentMoldId
+    };
+    state.enemies.push(cell);
+    return cell;
+  }
+
+  function spawnRivalMold(x,y,edge=true){
+    // Jede neu auftauchende Fremdpilzzelle beginnt ein eigenes Myzel.
+    // Wurzeln werden nur auf freien Positionen gesetzt, damit Fremdpilze
+    // einander tatsächlich Platz wegnehmen.
+    for(let attempt=0;attempt<28;attempt++){
+      let px=x, py=y;
+      if(edge || attempt>0){
+        px=rnd(70,W-70);
+        py=rnd(SURFACE_Y+70,H-95);
+      }
+      if(!rivalMoldPositionFree(px,py)) continue;
+      const colonyId=state.nextMoldColonyId++;
+      createRivalMoldCell(px,py,colonyId,null);
+      return true;
+    }
+    return false;
+  }
+
+  function growRivalMold(){
+    const molds=livingRivalMoldCells();
+    if(!molds.length) return false;
+
+    const colonies=[...new Set(molds.map(m=>m.colonyId))]
+      .filter(id=>rivalColonySize(id)<RIVAL_MOLD_MAX_CELLS);
+    if(!colonies.length) return false;
+
+    // Bevorzugt werden Endzellen, damit längliche, verzweigte Hyphen entstehen.
+    for(let colonyTry=0;colonyTry<Math.min(8,colonies.length*2);colonyTry++){
+      const colonyId=choice(colonies);
+      const cells=molds.filter(m=>m.colonyId===colonyId);
+      const tips=cells.filter(m=>!cells.some(c=>c.parentMoldId===m.moldCellId));
+      const parent=choice(tips.length?tips:cells);
+
+      for(let attempt=0;attempt<12;attempt++){
+        let baseAngle=rnd(0,Math.PI*2);
+        const grandParent=getRivalMoldCell(parent.parentMoldId);
+        if(grandParent){
+          const forward=Math.atan2(parent.y-grandParent.y,parent.x-grandParent.x);
+          baseAngle=forward+rnd(-1.0,1.0);
+        }
+        const rr=rnd(RIVAL_MOLD_LINK_MIN,RIVAL_MOLD_LINK_MAX);
+        const nx=parent.x+Math.cos(baseAngle)*rr;
+        const ny=parent.y+Math.sin(baseAngle)*rr;
+        if(!rivalMoldPositionFree(nx,ny)) continue;
+        createRivalMoldCell(nx,ny,colonyId,parent.moldCellId);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function seedEnemies(){
+    const cfg = getConfig();
+    for(let i=0;i<cfg.initialBacteria;i++) spawnBacterium(rnd(100,W-100),rnd(180,H-210),false);
+    for(let i=0;i<cfg.initialMold;i++) spawnRivalMold(rnd(120,W-120),rnd(180,H-300),false);
+  }
+
+  function burst(x,y,color,n,speed){
+    for(let i=0;i<n;i++){
+      const a=rnd(0,Math.PI*2),v=rnd(speed*.25,speed);
+      state.particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rnd(.35,.75),maxLife:.75,color,size:rnd(1.5,4)});
+    }
+  }
+
+  function cellInZone(c, zone){
+    return c.y <= zone.y + zone.h/2 && c.y >= SURFACE_Y + 8 && Math.abs(c.x - zone.x) <= zone.w/2;
+  }
+
+  function isAncestor(ancestorId, cellId){
+    let cur = getCell(cellId);
+    while(cur && cur.parent != null){
+      if(cur.parent === ancestorId) return true;
+      cur = getCell(cur.parent);
+    }
+    return false;
+  }
+
+  function findSeparatedTipCombo(zoneCells){
+    if(zoneCells.some(a => a.length === 0)) return null;
+    for(const a of zoneCells[0]){
+      for(const b of zoneCells[1]){
+        for(const c of zoneCells[2]){
+          if(a===b || a===c || b===c) continue;
+          // Die drei Zielzellen dürfen nicht hintereinander auf demselben unverzweigten Faden liegen.
+          // Ein gemeinsamer Hauptfaden ist erlaubt; die Aufteilung darf an beliebiger Stelle erfolgen.
+          const nested = isAncestor(a,b) || isAncestor(b,a) ||
+                         isAncestor(a,c) || isAncestor(c,a) ||
+                         isAncestor(b,c) || isAncestor(c,b);
+          if(!nested) return [a,b,c];
+        }
+      }
+    }
+    return null;
+  }
+
+  function computeZoneStatus(){
+    const living = livingCells();
+    const zoneBranches = SURFACE_ZONES.map(zone =>
+      living.filter(c=>cellInZone(c,zone)).map(c=>c.id)
+    );
+    const combo = findSeparatedTipCombo(zoneBranches);
+    return {
+      zoneBranches,
+      combo,
+      zoneCount: zoneBranches.filter(a => a.length > 0).length,
+      reached: !!combo
+    };
+  }
+
+  function chooseCarrierCell(){
+    const living = livingCells().filter(c => cellInZone(c,SURFACE_ZONES[1]) || c.y <= SURFACE_Y + 50);
+    if(!living.length) return null;
+    living.sort((a,b)=>a.y-b.y || Math.abs(a.x - SURFACE_ZONES[1].x) - Math.abs(b.x - SURFACE_ZONES[1].x));
+    return living[0];
+  }
+
+  function buildCarrier(){
+    state.targetProgress = computeZoneStatus();
+    if(!state.targetProgress.reached){showToast('Erst alle 3 Zielbereiche mit verschiedenen Verzweigungen erreichen');return;}
+    if(state.carrier){return;}
+    if(state.resource<CARRIER_COST){showToast(`Noch ${Math.ceil(CARRIER_COST-state.resource)} Stoffwechselprodukte nötig`);return;}
+    const cell = chooseCarrierCell();
+    if(!cell){showToast('Eine lebende Zelle muss die Oberfläche berühren');return;}
+    state.resource-=CARRIER_COST;
+    state.carrier=true;
+    state.carrierCell=cell.id;
+    burst(cell.x,SURFACE_Y+5,'#e9edb0',28,100);
+    showToast('Gefächerter Sporenträger gebildet');
+  }
+
+  function makeSpore(){
+    if(!state.carrier)return;
+    if(state.sporeCooldown>0){showToast('Sporenbildung regeneriert noch');return;}
+    if(state.resource<SPORE_COST){showToast('Zu wenig Stoffwechselprodukte');return;}
+    state.resource-=SPORE_COST;
+    state.spores++;
+    state.sporeCooldown=SPORE_COOLDOWN;
+    const c=getCell(state.carrierCell);
+    if(c) burst(c.x,SURFACE_Y-18,'#efe2a0',6,55);
+    if(state.spores>=SPORE_TARGET) win();
+  }
+
+  function unlockDifficulties(){
+    difficultiesUnlocked = true;
+    localStorage.setItem(UNLOCK_KEY,'1');
+    if(currentDifficulty === 'intro') currentDifficulty = 'd1';
+    updateDifficultyUI();
+  }
+
+  function win(){
+    state.won=true;
+    unlockDifficulties();
+    ui.endTitle.textContent='Sporulation gelungen';
+    ui.endText.textContent='Das Myzel hat alle 3 Zielbereiche erschlossen, einen pinselartigen Sporenträger aufgebaut und 20 Sporen gebildet. Kehre zum Startmenü zurück und wähle dort die nächste Schwierigkeit.';
+    ui.overlay.classList.add('show');
+  }
+
+  function lose(){
+    if(state.lost||state.won)return;
+    state.lost=true;
+    ui.endTitle.textContent='Myzel abgestorben';
+    const deadCount = state.cells.filter(c=>c.dead).length;
+    ui.endText.textContent = deadCount >= MAX_DEAD_CELLS
+      ? `5 eigene Pilzzellen sind abgestorben. Damit ist die maximale Verlustzahl erreicht.`
+      : 'Alle eigenen Pilzzellen wurden durch Konkurrenz geschädigt. Starte neu und setze Mykotoxine früher und gezielter ein.';
+    ui.overlay.classList.add('show');
+  }
+
+  function setDifficulty(level){
+    if(level !== 'intro' && !difficultiesUnlocked) return;
+    if(!DIFFICULTY_CONFIGS[level]) return;
+    currentDifficulty = level;
+    updateDifficultyUI();
+    reset();
+    showToast(`Schwierigkeit: ${DIFFICULTY_CONFIGS[level].label}`);
+  }
+
+  function selectMenuDifficulty(level){
+    if(!DIFFICULTY_CONFIGS[level]) return;
+    if(level !== 'intro' && !difficultiesUnlocked){
+      ui.menuSelectionText.textContent='Die Stufen 1–3 werden nach dem ersten Erfolg freigeschaltet.';
+      return;
+    }
+    menuDifficulty=level;
+    updateDifficultyUI();
+  }
+
+  function updateDifficultyUI(){
+    for(const [key,btn] of Object.entries(ui.menuDiffButtons)){
+      const locked = key !== 'intro' && !difficultiesUnlocked;
+      btn.disabled = locked;
+      btn.classList.toggle('selected', menuDifficulty === key && !locked);
+    }
+    for(const key of ['d1','d2','d3']){
+      ui.menuLocks[key].textContent = difficultiesUnlocked ? '' : 'Nach dem ersten Erfolg verfügbar';
+    }
+    const selectedCfg = DIFFICULTY_CONFIGS[menuDifficulty] || DIFFICULTY_CONFIGS.intro;
+    ui.menuSelectionText.textContent = `Gewählt: ${selectedCfg.label}`;
+  }
+
+
+  function setInstructionOpen(open){
+    ui.howToPanel.classList.toggle('show',open);
+    ui.instructionToggle.classList.toggle('open',open);
+    ui.instructionToggle.setAttribute('aria-expanded',String(open));
+    ui.instructionToggle.textContent=open?'Spielanleitung ausblenden':'Spielanleitung anzeigen';
+  }
+
+  function showStartMenu(){
+    resetWarnings();
+    setInstructionOpen(false);
+    menuOpen=true;
+    ui.overlay.classList.remove('show');
+    if(difficultiesUnlocked && menuDifficulty === 'intro') menuDifficulty='d1';
+    updateDifficultyUI();
+    ui.startScreen.classList.add('show');
+  }
+
+  function startSelectedGame(){
+    if(menuDifficulty !== 'intro' && !difficultiesUnlocked) return;
+    currentDifficulty=menuDifficulty;
+    menuOpen=false;
+    ui.startScreen.classList.remove('show');
+    reset();
+    showToast(`Schwierigkeit: ${getConfig().label}`);
+  }
+
+  function reset(){
+    resetWarnings();
+    state = newState();
+    last = performance.now();
+    pointer.inside=false;
+    ui.overlay.classList.remove('show');
+    seedEnemies();
+    setMode('grow');
+    state.targetProgress = computeZoneStatus();
+    state.zoneCount = state.targetProgress.zoneCount;
+    updateDifficultyUI();
+    updateUI();
+  }
+
+  function update(dt){
+    if(menuOpen||state.won||state.lost)return;
+    state.time+=dt;
+    const living=livingCells();
+    const production=living.length*0.72;
+    state.resource=Math.min(999, state.resource+production*dt);
+
+    for(const c of state.cells){ if(c.cool>0) c.cool=Math.max(0,c.cool-dt); }
+    state.sporeCooldown=Math.max(0,state.sporeCooldown-dt);
+    state.attackWarningCooldown=Math.max(0,state.attackWarningCooldown-dt);
+
+    const cfg = getConfig();
+    state.nextSpawn-=dt;
+    if(state.nextSpawn<=0){
+      const threat=Math.min(1,state.time/150);
+      if(Math.random()<.68) spawnBacterium(); else spawnRivalMold();
+      if(Math.random()<cfg.bonusSpawn+threat*.18) spawnBacterium();
+      if(Math.random()<cfg.bonusSpawn*.4) spawnRivalMold();
+      state.nextSpawn = rnd(cfg.spawnMin, cfg.spawnMax) - threat*0.9;
+    }
+
+    const attackTypes=new Set();
+    for(const e of state.enemies){
+      if(e.dead) continue;
+      e.phase+=dt*(e.type==='bacteria'?8.5:1);
+      if(e.type==='bacteria'){
+        // Zielschwimmen: Bakterien wählen stets die nächstgelegene lebende Pilzzelle
+        // und richten ihre Geschwindigkeit kontinuierlich auf dieses Ziel aus.
+        const n=nearestCell(e.x,e.y,Infinity);
+        if(n.cell){
+          e.targetId=n.cell.id;
+          const dx=n.cell.x-e.x,dy=n.cell.y-e.y,d=Math.hypot(dx,dy)||1;
+          const speed=25 + (currentDifficulty==='d3'?6:currentDifficulty==='d2'?4:currentDifficulty==='d1'?2:0);
+          const desiredX=dx/d*speed, desiredY=dy/d*speed;
+          const steer=Math.min(1,dt*3.8);
+          e.vx += (desiredX-e.vx)*steer;
+          e.vy += (desiredY-e.vy)*steer;
+        }
+        const sp=Math.hypot(e.vx,e.vy)||1;
+        const max=31 + (currentDifficulty==='d3'?5:currentDifficulty==='d2'?3:0);
+        if(sp>max){e.vx=e.vx/sp*max;e.vy=e.vy/sp*max}
+        e.x+=e.vx*dt;e.y+=e.vy*dt;
+
+        // Nur als Sicherheitsbegrenzung am Rand; danach wird sofort wieder das Pilzziel verfolgt.
+        if(e.x<28||e.x>W-28)e.vx*=-0.35;
+        if(e.y<SURFACE_Y+25||e.y>H-28)e.vy*=-0.35;
+        e.x=clamp(e.x,26,W-26);e.y=clamp(e.y,SURFACE_Y+22,H-28);
+      }
+      for(const c of state.cells){
+        if(c.dead)continue;
+        const d=Math.hypot(c.x-e.x,c.y-e.y);
+        const radius=e.type==='bacteria'?45:67;
+        if(d<radius){
+          attackTypes.add(e.type);
+          const damage=e.type==='bacteria'?8.5:5.4;
+          c.hp-=damage*(1-d/radius*.55)*dt;
+          if(c.hp<=0){c.hp=0;c.dead=true;burst(c.x,c.y,'#899786',16,48);state.shake=.25;}
+        }
+      }
+    }
+
+    const underAttack=attackTypes.size>0;
+    if(underAttack && !state.wasUnderAttack && state.attackWarningCooldown<=0){
+      const attackText = attackTypes.has('bacteria') && attackTypes.has('mold')
+        ? 'Deine Hyphe wird von Bakterien und Pilzen angegriffen.'
+        : attackTypes.has('bacteria')
+          ? 'Deine Hyphe wird von Bakterien angegriffen.'
+          : 'Deine Hyphe wird von Pilzen angegriffen.';
+      showWarning(attackText,'danger',1850);
+      if(!state.toxinHintShown){
+        showWarning('Schütze dich mit Mykotoxinen.','toxin',1750);
+        state.toxinHintShown=true;
+      }
+      state.attackWarningCooldown=5.5;
+    }
+    state.wasUnderAttack=underAttack;
+
+    // Jeder Fremdpilz breitet sich langsam als eigenes Myzel aus.
+    // Pro Kolonie sind höchstens 8 lebende Zellen möglich. Ist der Platz durch
+    // andere Fremdpilzzellen belegt, kann dort keine neue Zelle entstehen.
+    if(Math.random()<dt*cfg.budRate*0.55){
+      growRivalMold();
+    }
+
+    // Persistierende Mykotoxin-Flecken: Bakterien sterben rasch, Fremdpilze erleiden Zeitschaden.
+    for(const f of state.toxinFields){
+      f.life-=dt;
+      if(f.life<=0) continue;
+      for(const e of state.enemies){
+        if(e.dead) continue;
+        const d=Math.hypot(e.x-f.x,e.y-f.y);
+        if(d>f.r) continue;
+        const strength=clamp(1-d/f.r,0.18,1);
+        if(e.type==='bacteria') damageEnemy(e,82*strength*dt);
+        else damageEnemy(e,13*strength*dt);
+      }
+    }
+    state.toxinFields=state.toxinFields.filter(f=>f.life>0);
+
+    for(const p of state.pulses){p.life-=dt;p.r+=(p.maxR-p.r)*Math.min(1,dt*7)}
+    state.pulses=state.pulses.filter(p=>p.life>0);
+    for(const p of state.particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(.15,dt);p.vy*=Math.pow(.15,dt)}
+    state.particles=state.particles.filter(p=>p.life>0);
+    state.enemies=state.enemies.filter(e=>!e.dead || (e.deadTime=(e.deadTime||.55)-dt)>0);
+    state.shake=Math.max(0,state.shake-dt);
+
+    state.targetProgress = computeZoneStatus();
+    state.zoneCount = state.targetProgress.zoneCount;
+    state.reached = state.targetProgress.reached;
+
+    if(state.carrier){
+      const c = getCell(state.carrierCell);
+      if(!c || c.dead) {
+        state.carrier=false;
+        state.carrierCell=null;
+        showToast('Der Sporenträger ist verloren gegangen');
+      }
+    }
+
+    const deadCount = state.cells.filter(c=>c.dead).length;
+    if(deadCount >= MAX_DEAD_CELLS || !livingCells().length) lose();
+    updateUI();
+  }
+
+  function updateUI(){
+    const living=livingCells();
+    ui.res.textContent=Math.floor(state.resource);
+    ui.cells.textContent=living.length;
+    const deadCount = state.cells.filter(c=>c.dead).length;
+    ui.dead.textContent=deadCount;
+    ui.spores.textContent=state.spores;
+    ui.zones.textContent=state.zoneCount + '/3';
+    ui.prod.textContent=(living.length*.72).toFixed(1)+'/s';
+    const activeThreats=state.enemies.filter(e=>!e.dead && living.some(c=>Math.hypot(c.x-e.x,c.y-e.y)<100)).length;
+    ui.threat.textContent=activeThreats>6?'hoch':activeThreats>2?'mittel':'niedrig';
+    ui.digestibilityValue.textContent=Math.round(state.digestibility)+' %';
+    ui.digestibilityFill.style.width=state.digestibility+'%';
+    ui.digestibilityFill.style.background = state.digestibility>65
+      ? 'linear-gradient(90deg,#d4ee82,#7fcf78)'
+      : state.digestibility>35
+        ? 'linear-gradient(90deg,#f2dc73,#dfad58)'
+        : 'linear-gradient(90deg,#efaa66,#df6d62)';
+    ui.dead.parentElement.style.borderColor = deadCount >= 4 ? 'rgba(239,125,114,.85)' : '';
+    ui.grow.disabled=state.resource<GROW_COST;
+    ui.toxin.disabled=state.resource<TOXIN_COST;
+    ui.carrier.disabled=!state.reached||state.carrier;
+    ui.spore.disabled=!state.carrier||state.resource<SPORE_COST||state.spores>=SPORE_TARGET||state.sporeCooldown>0;
+    ui.spore.innerHTML = state.sporeCooldown>0
+      ? `Spore produzieren <span class="cost">${state.sporeCooldown.toFixed(1)} s</span>`
+      : `Spore produzieren <span class="cost">${SPORE_COST}</span>`;
+    if(!state.reached){
+      ui.goal.textContent = state.zoneCount===3 ? 'Ziel: Die drei Enden müssen auf getrennten Ästen liegen' : `Ziel: 3 Bereiche erreichen (${state.zoneCount}/3)`;
+    } else if(!state.carrier){
+      const missing=Math.max(0,Math.ceil(CARRIER_COST-state.resource));
+      ui.goal.textContent = missing ? `Ziel: Noch ${missing} Produkte für den Sporenträger` : 'Ziel: Sporenträger bauen';
+    }
+    else ui.goal.textContent=`Ziel: Sporen produzieren (${state.spores}/${SPORE_TARGET})`;
+  }
+
+  function drawBackground(){
+    const g=ctx.createRadialGradient(W*.47,H*.48,40,W*.5,H*.48,640);
+    g.addColorStop(0,'#f2eed8');g.addColorStop(.55,'#ded9bd');g.addColorStop(1,'#c9c2a6');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha=.18;
+    for(let i=0;i<120;i++){
+      const x=(i*83+state.time*2)%W,y=(i*47)%H,r=1+(i%5)*.6;
+      ctx.fillStyle=i%3?'#8c8b78':'#ffffff';ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+    }
+    ctx.globalAlpha=1;
+
+    ctx.fillStyle='#c4e2e2';ctx.globalAlpha=.50;ctx.fillRect(0,0,W,SURFACE_Y);
+    ctx.globalAlpha=1;
+    ctx.strokeStyle='#eefcf6';ctx.lineWidth=3;ctx.setLineDash([8,9]);ctx.beginPath();ctx.moveTo(0,SURFACE_Y);ctx.lineTo(W,SURFACE_Y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#31565b';ctx.font='800 15px system-ui';ctx.fillText('JOGHURTOBERFLÄCHE',28,SURFACE_Y-18);
+
+    for(const zone of SURFACE_ZONES){
+      const reached = state.targetProgress && state.targetProgress.zoneBranches[zone.id-1].length > 0;
+      ctx.save();
+      ctx.translate(zone.x, zone.y);
+      ctx.fillStyle = reached ? 'rgba(166,220,114,.22)' : 'rgba(91,136,149,.13)';
+      ctx.strokeStyle = reached ? 'rgba(184,227,111,.95)' : 'rgba(92,147,157,.82)';
+      ctx.lineWidth = reached ? 3 : 2;
+      ctx.beginPath();
+      ctx.roundRect(-zone.w/2, -zone.h/2, zone.w, zone.h, 26);
+      ctx.fill();
+      ctx.setLineDash([7,7]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = reached ? '#16301c' : '#204048';
+      ctx.font = '900 16px system-ui';
+      ctx.beginPath();
+      ctx.arc(0,-zone.h/2+18,14,0,Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = reached ? '#dff8a2' : '#bfe7e9';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(zone.label,0,-zone.h/2+18);
+      ctx.restore();
+    }
+
+    const vg=ctx.createRadialGradient(W/2,H/2,290,W/2,H/2,710);
+    vg.addColorStop(.55,'rgba(5,15,18,0)');vg.addColorStop(.83,'rgba(5,16,18,.24)');vg.addColorStop(1,'rgba(3,10,12,.82)');
+    ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(230,255,250,.13)';ctx.lineWidth=16;ctx.strokeRect(8,8,W-16,H-16);
+  }
+
+  function drawHypha(){
+    ctx.lineCap='round';
+    for(const c of state.cells){
+      if(c.parent==null)continue;
+      const p=getCell(c.parent);
+      if(!p)continue;
+      ctx.strokeStyle=(c.dead||p.dead)?'rgba(91,103,90,.44)':'rgba(104,155,74,.68)';
+      ctx.lineWidth=14;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(c.x,c.y);ctx.stroke();
+      ctx.strokeStyle=(c.dead||p.dead)?'rgba(130,140,124,.25)':'rgba(216,239,151,.30)';
+      ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(c.x,c.y);ctx.stroke();
+    }
+    for(const c of state.cells) drawCell(c);
+  }
+
+  function getCellAngle(c){
+    let ax = 0, ay = -1;
+    const parent = c.parent != null ? getCell(c.parent) : null;
+    if(parent){ ax += c.x - parent.x; ay += c.y - parent.y; }
+    let children = 0;
+    for(const child of state.cells){
+      if(child.dead) continue;
+      if(child.parent === c.id){ ax += child.x - c.x; ay += child.y - c.y; children++; }
+    }
+    const len = Math.hypot(ax, ay) || 1;
+    return Math.atan2(ay/len, ax/len);
+  }
+
+  function drawElongatedCell(length,width,fill1,fill2,stroke){
+    const hw = width/2, hl = length/2;
+    ctx.beginPath();
+    ctx.moveTo(-hl+hw, -hw);
+    ctx.lineTo(hl-hw, -hw);
+    ctx.arc(hl-hw, 0, hw, -Math.PI/2, Math.PI/2);
+    ctx.lineTo(-hl+hw, hw);
+    ctx.arc(-hl+hw, 0, hw, Math.PI/2, -Math.PI/2);
+    const grad = ctx.createLinearGradient(-hl,0,hl,0);
+    grad.addColorStop(0, fill1);
+    grad.addColorStop(.55, fill2);
+    grad.addColorStop(1, fill1);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function drawCell(c){
+    const alive=!c.dead, hp=c.hp/c.maxHp;
+    const angle = getCellAngle(c);
+    ctx.save();
+    ctx.translate(c.x,c.y);
+    ctx.rotate(angle);
+    if(alive){
+      drawElongatedCell(38,18,'#cde891','#99c95b','#5e7e42');
+      ctx.strokeStyle='rgba(64,99,41,.45)';
+      ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(-6,-7);ctx.lineTo(-6,7);ctx.moveTo(7,-7);ctx.lineTo(7,7);ctx.stroke();
+      ctx.fillStyle='rgba(67,104,42,.18)';
+      ctx.beginPath();ctx.ellipse(0,0,7,4.6,0,0,Math.PI*2);ctx.fill();
+      if(hp<.995){
+        ctx.restore();
+        ctx.save();ctx.translate(c.x,c.y);
+        ctx.strokeStyle='#5e6b55';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,26,-Math.PI/2,Math.PI*1.5);ctx.stroke();
+        ctx.strokeStyle=hp>.45?'#efcc66':'#e77368';ctx.beginPath();ctx.arc(0,0,26,-Math.PI/2,-Math.PI/2+Math.PI*2*hp);ctx.stroke();
+      }
+      if(c.cool>0){
+        ctx.restore();
+        ctx.save();ctx.translate(c.x,c.y);
+        ctx.strokeStyle='rgba(67,161,169,.55)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,29,0,Math.PI*2*(1-c.cool/2.1));ctx.stroke();
+      }
+    }else{
+      drawElongatedCell(34,16,'#9aa495','#7e877c','#646b62');
+      ctx.strokeStyle='#596158';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-10,-6);ctx.lineTo(10,6);ctx.moveTo(10,-6);ctx.lineTo(-10,6);ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function getRivalMoldAngle(m){
+    let ax=0, ay=-1;
+    const parent=getRivalMoldCell(m.parentMoldId);
+    if(parent){ax+=m.x-parent.x;ay+=m.y-parent.y;}
+    const children=state.enemies.filter(e=>e.type==='mold'&&!e.dead&&e.parentMoldId===m.moldCellId);
+    for(const child of children){ax+=child.x-m.x;ay+=child.y-m.y;}
+    const len=Math.hypot(ax,ay)||1;
+    return Math.atan2(ay/len,ax/len);
+  }
+
+  function drawRivalMoldCell(m){
+    const hpRatio=clamp(m.hp/m.maxHp,0,1);
+    const angle=getRivalMoldAngle(m);
+    ctx.save();
+    ctx.translate(m.x,m.y);
+    ctx.rotate(angle);
+
+    // Gleiche Zellform wie beim eigenen Myzel, nur in Lila.
+    drawElongatedCell(38,18,'#d5a7e6','#ae6cc7','#704184');
+    ctx.strokeStyle='rgba(91,48,111,.48)';
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(-6,-7);ctx.lineTo(-6,7);ctx.moveTo(7,-7);ctx.lineTo(7,7);ctx.stroke();
+    ctx.fillStyle='rgba(82,42,101,.20)';
+    ctx.beginPath();ctx.ellipse(0,0,7,4.6,0,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+
+    // Lebensbalken bleibt pro Zelle erhalten und zeigt Mykotoxinschaden.
+    ctx.save();
+    ctx.translate(m.x,m.y);
+    ctx.fillStyle='rgba(20,25,25,.78)';
+    ctx.beginPath();ctx.roundRect(-25,-31,50,7,3.5);ctx.fill();
+    ctx.fillStyle=hpRatio>.55?'#9bd56c':hpRatio>.28?'#e6bf5b':'#e16f68';
+    if(hpRatio>0){ctx.beginPath();ctx.roundRect(-24,-30,48*hpRatio,5,2.5);ctx.fill();}
+    ctx.strokeStyle='rgba(255,255,255,.38)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(-25,-31,50,7,3.5);ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawEnemies(){
+    // Bakterien
+    for(const e of state.enemies){
+      if(e.dead || e.type!=='bacteria') continue;
+      ctx.save();
+      ctx.translate(e.x,e.y);
+
+      // Der vordere Pol zeigt immer in Bewegungsrichtung. Dadurch liegt die
+      // Geißel automatisch am entgegengesetzten, hinteren Zellpol.
+      const motionAngle=Math.atan2(e.vy,e.vx);
+      ctx.rotate(motionAngle);
+
+      // Schlängelnde Geißel hinter dem Bakterium.
+      ctx.strokeStyle='rgba(137,69,78,.92)';
+      ctx.lineWidth=2.2;
+      ctx.lineCap='round';
+      ctx.lineJoin='round';
+      ctx.beginPath();
+      ctx.moveTo(-15,0);
+      const flagellumLength=52;
+      const segments=14;
+      for(let i=1;i<=segments;i++){
+        const t=i/segments;
+        const x=-15-flagellumLength*t;
+        const amp=2.0+5.2*t;
+        const y=Math.sin(e.phase*1.55+t*Math.PI*4.4)*amp;
+        ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+
+      const grad=ctx.createLinearGradient(-14,-8,14,8);
+      grad.addColorStop(0,'#ffd0a1');grad.addColorStop(.45,'#f08b75');grad.addColorStop(1,'#b54f58');
+      ctx.fillStyle=grad;
+      ctx.beginPath();ctx.roundRect(-16,-8,32,16,8);ctx.fill();
+      ctx.strokeStyle='#934350';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.strokeStyle='rgba(255,238,205,.55)';ctx.lineWidth=1.5;
+      for(let i=-8;i<=8;i+=8){ctx.beginPath();ctx.moveTo(i,-6);ctx.lineTo(i+4,6);ctx.stroke()}
+      ctx.restore();
+    }
+
+    // Hyphen der Fremdpilze liegen unter deren Zellen – analog zum eigenen Myzel.
+    ctx.lineCap='round';
+    for(const m of state.enemies){
+      if(m.dead || m.type!=='mold' || m.parentMoldId==null) continue;
+      const parent=getRivalMoldCell(m.parentMoldId);
+      if(!parent || parent.dead) continue;
+      ctx.strokeStyle='rgba(122,72,145,.72)';
+      ctx.lineWidth=14;
+      ctx.beginPath();ctx.moveTo(parent.x,parent.y);ctx.lineTo(m.x,m.y);ctx.stroke();
+      ctx.strokeStyle='rgba(222,177,235,.28)';
+      ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(parent.x,parent.y);ctx.lineTo(m.x,m.y);ctx.stroke();
+    }
+
+    for(const m of state.enemies){
+      if(m.dead || m.type!=='mold') continue;
+      drawRivalMoldCell(m);
+    }
+  }
+
+  function carrierHitTest(x,y){
+    if(!state.carrier) return false;
+    const c=getCell(state.carrierCell);
+    if(!c || c.dead) return false;
+
+    // Großzügige Touch-Zone um Stiel und gefächerten Kopf des Sporenträgers.
+    // So bleibt der Treffer auch auf einem skalierten iPad-Canvas zuverlässig.
+    const stalkTopY=SURFACE_Y-8;
+    const fanY=SURFACE_Y-56;
+    const headHit = Math.abs(x-c.x) <= 82 && y >= fanY-70 && y <= stalkTopY+28;
+
+    // Distanz des Punkts zur annähernd geraden Stielachse zwischen Basis und Oberfläche.
+    const ax=c.x, ay=c.y-8, bx=c.x, by=stalkTopY;
+    const abx=bx-ax, aby=by-ay;
+    const apx=x-ax, apy=y-ay;
+    const denom=abx*abx+aby*aby || 1;
+    const t=clamp((apx*abx+apy*aby)/denom,0,1);
+    const px=ax+abx*t, py=ay+aby*t;
+    const stalkHit=Math.hypot(x-px,y-py)<=24;
+    return headHit || stalkHit;
+  }
+
+  function drawCarrier(){
+    if(!state.carrier)return;
+    const c=getCell(state.carrierCell);if(!c)return;
+    const stalkTopY = SURFACE_Y - 8;
+    const fanY = SURFACE_Y - 56;
+    ctx.save();
+    ctx.strokeStyle='#708849';ctx.lineWidth=10;ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(c.x,c.y-8);
+    ctx.bezierCurveTo(c.x-6,c.y-44,c.x+4,SURFACE_Y+12,c.x,stalkTopY);
+    ctx.stroke();
+
+    const fanAngles = [-1.18,-0.86,-0.55,-0.22,0.08,0.36,0.66,0.96,1.24];
+    for(let i=0;i<fanAngles.length;i++){
+      const a = fanAngles[i];
+      const len = 42 + (i%2)*7;
+      const ex = c.x + Math.sin(a) * len;
+      const ey = fanY + Math.cos(a) * 10;
+      ctx.strokeStyle='#7d9353';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(c.x, stalkTopY);
+      ctx.quadraticCurveTo(c.x + Math.sin(a)*10, fanY+8, ex, ey);
+      ctx.stroke();
+      for(let j=0;j<4;j++){
+        const chainX = ex + j*Math.sin(a)*6;
+        const chainY = ey - j*7;
+        ctx.strokeStyle='#75894f';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(chainX, chainY);
+        ctx.lineTo(chainX, chainY-10);
+        ctx.stroke();
+        const sporeCount = Math.max(1, Math.min(4, Math.floor((state.spores - (i*2+j)) / 2) + 1));
+        for(let s=0;s<sporeCount;s++){
+          ctx.fillStyle = '#efe3a4';
+          ctx.beginPath();
+          ctx.arc(chainX + (s%2?3:-2), chainY - 12 - s*5, 3.2, 0, Math.PI*2);
+          ctx.fill();
+          ctx.strokeStyle = '#827743';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawToxinFields(){
+    for(const f of state.toxinFields){
+      const life=clamp(f.life/f.maxLife,0,1);
+      const fade=Math.min(1,life*1.8);
+      ctx.save();
+      ctx.translate(f.x,f.y);
+
+      // Weicher, leicht unregelmäßiger grüner Fleck wie ein diffundierter Wirkstoff im Medium.
+      const g=ctx.createRadialGradient(0,0,8,0,0,f.r);
+      g.addColorStop(0,`rgba(73,145,59,${0.30*fade})`);
+      g.addColorStop(.45,`rgba(91,166,69,${0.22*fade})`);
+      g.addColorStop(.78,`rgba(116,181,88,${0.11*fade})`);
+      g.addColorStop(1,'rgba(116,181,88,0)');
+      ctx.fillStyle=g;
+      ctx.beginPath();
+      const lobes=20;
+      for(let i=0;i<=lobes;i++){
+        const a=i/lobes*Math.PI*2;
+        const rr=f.r*(.86+.08*Math.sin(a*3+f.seed)+.05*Math.sin(a*7-f.seed));
+        const x=Math.cos(a)*rr,y=Math.sin(a)*rr;
+        if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.closePath();ctx.fill();
+
+      ctx.fillStyle=`rgba(53,122,48,${0.18*fade})`;
+      for(let i=0;i<12;i++){
+        const a=f.seed+i*2.399;
+        const rr=f.r*(.16+(i%5)*.12);
+        ctx.beginPath();ctx.arc(Math.cos(a)*rr,Math.sin(a)*rr,2+(i%3),0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawPulsesParticles(){
+    for(const p of state.pulses){
+      const a=p.life/p.maxLife;ctx.strokeStyle=`rgba(82,162,65,${a*.72})`;ctx.lineWidth=5*a+1;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.3);ctx.stroke();
+      ctx.fillStyle=`rgba(119,185,91,${a*.10})`;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.3);ctx.fill();
+    }
+    for(const p of state.particles){const a=clamp(p.life/p.maxLife,0,1);ctx.globalAlpha=a;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,6.3);ctx.fill();ctx.globalAlpha=1}
+  }
+
+  function drawPlacementGhost(){
+    if(!pointer.inside||state.mode!=='grow'||state.won||state.lost)return;
+    const p=canPlace(pointer.x,pointer.y);
+    const n=nearestCell(pointer.x,pointer.y,LINK_MAX);
+    if(n.cell){ctx.strokeStyle=p.ok?'rgba(96,148,67,.45)':'rgba(180,87,75,.28)';ctx.lineWidth=2;ctx.setLineDash([5,6]);ctx.beginPath();ctx.moveTo(n.cell.x,n.cell.y);ctx.lineTo(pointer.x,pointer.y);ctx.stroke();ctx.setLineDash([])}
+    ctx.save();
+    ctx.translate(pointer.x,pointer.y);
+    if(n.cell){
+      const angle = Math.atan2(pointer.y - n.cell.y, pointer.x - n.cell.x);
+      ctx.rotate(angle);
+    }
+    ctx.strokeStyle=p.ok?'rgba(184,227,111,.92)':'rgba(224,112,100,.82)';ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(-10,-9);ctx.lineTo(10,-9);ctx.arc(10,0,9,-Math.PI/2,Math.PI/2);ctx.lineTo(-10,9);ctx.arc(-10,0,9,Math.PI/2,-Math.PI/2);ctx.stroke();
+    ctx.restore();
+  }
+
+  function draw(){
+    ctx.save();
+    if(state.shake>0)ctx.translate(rnd(-3,3),rnd(-3,3));
+    drawBackground();
+    drawToxinFields();
+    drawEnemies();
+    drawHypha();
+    drawCarrier();
+    drawPulsesParticles();
+    drawPlacementGhost();
+    ctx.restore();
+  }
+
+  function loop(now){
+    const dt=Math.min(.033,(now-last)/1000||0);last=now;
+    update(dt);draw();requestAnimationFrame(loop);
+  }
+
+  function pointerPos(ev){
+    const r=canvas.getBoundingClientRect();
+    return {x:(ev.clientX-r.left)/r.width*W,y:(ev.clientY-r.top)/r.height*H};
+  }
+  canvas.addEventListener('pointermove',ev=>{const p=pointerPos(ev);pointer={...p,inside:true}});
+  canvas.addEventListener('pointerleave',()=>pointer.inside=false);
+  canvas.addEventListener('pointerdown',ev=>{
+    ev.preventDefault();
+    if(state.won||state.lost)return;
+    const p=pointerPos(ev);pointer={...p,inside:true};
+
+    // iPad/Touch: Die Aktion wird ausschließlich durch das angetippte Objekt bestimmt.
+    if(ev.pointerType==='touch' || ev.pointerType==='pen'){
+      // 1. Sporenträger hat Priorität, damit ein Tipp auf Stiel/Kopf nicht als Toxin-Tipp
+      //    auf die darunterliegende Trägerzelle interpretiert wird.
+      if(carrierHitTest(p.x,p.y)){
+        makeSpore();
+        return;
+      }
+
+      // 2. Direkt auf eine eigene Zelle: automatisch Mykotoxin freisetzen.
+      const own=nearestCell(p.x,p.y,30);
+      if(own.cell){
+        toxinAt(own.cell);
+        return;
+      }
+
+      // 3. Sonst wird automatisch versucht, an dieser Stelle eine neue Zelle anzubauen.
+      addCell(p.x,p.y);
+      return;
+    }
+
+    // Mausbedienung behält die optionalen Modusschalter bei.
+    if(state.carrier && carrierHitTest(p.x,p.y)){
+      makeSpore();
+      return;
+    }
+    if(state.mode==='grow') addCell(p.x,p.y);
+    else{
+      const n=nearestCell(p.x,p.y,31);
+      if(n.cell)toxinAt(n.cell);else showToast('Klicke direkt auf eine eigene Zelle');
+    }
+  },{passive:false});
+
+  ui.grow.onclick=()=>setMode('grow');
+  ui.toxin.onclick=()=>setMode('toxin');
+  ui.carrier.onclick=buildCarrier;
+  ui.spore.onclick=makeSpore;
+  ui.restart.onclick=showStartMenu;
+  ui.restartModal.onclick=showStartMenu;
+  ui.menuDiffButtons.intro.onclick=()=>selectMenuDifficulty('intro');
+  ui.menuDiffButtons.d1.onclick=()=>selectMenuDifficulty('d1');
+  ui.menuDiffButtons.d2.onclick=()=>selectMenuDifficulty('d2');
+  ui.menuDiffButtons.d3.onclick=()=>selectMenuDifficulty('d3');
+  ui.startGame.onclick=startSelectedGame;
+  ui.instructionToggle.onclick=()=>setInstructionOpen(!ui.howToPanel.classList.contains('show'));
+  window.addEventListener('keydown',e=>{
+    if(menuOpen) return;
+    if(e.key==='1')setMode('grow');
+    if(e.key==='2')setMode('toxin');
+    if(e.key.toLowerCase()==='r')showStartMenu();
+  });
+
+  updateDifficultyUI();
+  reset();
+  showStartMenu();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
