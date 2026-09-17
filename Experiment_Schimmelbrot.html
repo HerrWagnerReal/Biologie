@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Schimmelpilz – Versuchsplanung</title>
+<style>
+:root{
+  --bg:#f3f0e7; --card:#fffdf8; --ink:#1f2b25; --muted:#67736c;
+  --green:#2f6f55; --green2:#e4f1e8; --red:#944b28; --red2:#fff0e3;
+  --line:#d8d1c5; --shadow:0 8px 24px rgba(38,45,39,.10);
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--bg)}
+body{overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button,select,textarea{font:inherit}
+button{cursor:pointer;touch-action:manipulation}
+#app{height:100dvh;display:grid;grid-template-rows:auto auto 1fr;min-height:0}
+header{background:#20372c;color:#fff;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+header h1{margin:0;font-size:clamp(20px,2.3vw,29px)}
+#progress{font-size:13px;background:rgba(255,255,255,.14);padding:7px 10px;border-radius:999px;white-space:nowrap}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:8px 12px;background:#e9e4da;border-bottom:1px solid #d2cabe}
+.tab{border:1px solid #c8c0b4;background:#fffaf1;color:#304239;border-radius:11px;padding:9px 8px;font-weight:700}
+.tab.active{background:var(--green);color:#fff;border-color:var(--green)}
+.tab.done:after{content:" ✓"}
+main{min-height:0;padding:10px;display:grid;grid-template-columns:minmax(0,1fr) 315px;gap:10px}
+.card{background:var(--card);border:1px solid #ddd5c8;border-radius:17px;box-shadow:var(--shadow);min-height:0}
+.left{padding:11px;display:grid;grid-template-rows:auto 1fr auto;gap:9px}
+.topline{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.topline h2{font-size:18px;margin:0}
+.topline span{font-size:13px;color:var(--muted)}
+.experiments{min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.box{min-width:0;min-height:0;border:1px solid var(--line);border-radius:15px;overflow:hidden;display:grid;grid-template-rows:auto auto 1fr;background:#faf8f2}
+.boxHead{padding:8px 11px;background:#f0ece4;border-bottom:1px solid var(--line)}
+.boxHead strong{font-size:17px}
+.boxHead div{font-size:12px;color:var(--muted);margin-top:2px}
+.controls{padding:7px 8px;display:flex;gap:6px;flex-wrap:wrap;background:#fff}
+.add{border:1px solid #bfc7c0;background:#f8faf8;border-radius:9px;padding:7px 9px;font-weight:700;color:#324a3e}
+.add.on{background:var(--green2);border-color:#77a48c;color:#22533d}
+.stage{position:relative;min-height:330px;overflow:hidden;background:
+  linear-gradient(to bottom,#f8f5ed 0 74%,#e5ded1 74% 76%,#d0b28e 76% 100%)}
+.label{position:absolute;left:9px;bottom:8px;z-index:20;background:rgba(255,253,248,.94);border:1px solid var(--line);border-radius:8px;padding:5px 7px;font-size:11px;font-weight:700;max-width:82%}
+.emptyHint{position:absolute;inset:0;display:grid;place-items:center;color:#92998f;font-size:13px;text-align:center;padding:30px;z-index:1}
+.emptyHint.hide{display:none}
+
+/* Petri dish */
+.dish{position:absolute;z-index:3;left:50%;top:46%;transform:translate(-50%,-50%);width:min(84%,360px);height:min(66%,220px);min-height:205px;border-radius:50%;
+  background:rgba(245,249,247,.45);border:6px solid rgba(183,197,192,.82);
+  box-shadow:inset 0 0 0 4px rgba(255,255,255,.68),0 13px 20px rgba(52,58,51,.13)}
+.dish:before{content:"";position:absolute;left:2%;right:2%;top:6%;height:14%;border-radius:50%;border-top:3px solid rgba(255,255,255,.9);opacity:.8}
+.dish.hidden{display:none}
+
+/* Toast */
+.toast{position:absolute;z-index:5;left:50%;top:46%;transform:translate(-50%,-50%);width:min(39%,168px);aspect-ratio:1.04;border:7px solid #b67c3c;border-radius:22% 22% 13% 13%;
+ background:
+  radial-gradient(circle at 19% 24%,rgba(255,255,255,.35) 0 2px,transparent 3px),
+  radial-gradient(circle at 72% 35%,rgba(133,87,43,.16) 0 2px,transparent 3px),
+  radial-gradient(circle at 38% 69%,rgba(255,255,255,.28) 0 2px,transparent 4px),
+  radial-gradient(circle at 62% 82%,rgba(133,87,43,.13) 0 2px,transparent 4px),
+  linear-gradient(135deg,#e7c183,#f4d9a8 58%,#ddae6c);
+ box-shadow:inset 0 0 12px rgba(114,72,30,.22),0 4px 10px rgba(47,38,28,.15);display:none;overflow:hidden}
+.toast.show{display:block}
+.toast:before{content:"";position:absolute;inset:5px;border-radius:inherit;border:1px solid rgba(122,76,37,.13)}
+.mold{position:absolute;border-radius:50%;opacity:0;transform:translate(-50%,-50%) scale(.1);
+ background:radial-gradient(circle,#22382a 0 10%,#476a4e 11% 29%,rgba(109,132,92,.9) 30% 45%,rgba(220,224,199,.68) 46% 60%,rgba(244,244,221,.15) 61% 70%,transparent 71%);
+ transition:transform .18s linear,opacity .18s linear;filter:blur(.15px)}
+.mold.alt{background:radial-gradient(circle,#2d3630 0 12%,#546650 13% 33%,rgba(184,193,158,.72) 34% 55%,transparent 70%)}
+
+/* Factor visuals */
+.heater{position:absolute;z-index:2;left:18%;right:18%;bottom:20px;height:73px;border:3px solid #a29f99;border-radius:8px;
+ background:repeating-linear-gradient(90deg,#dedbd4 0 19px,#b9b7b2 20px 26px);
+ box-shadow:0 -8px 20px rgba(177,75,23,.12);display:none}
+.heater.show{display:block}
+.heater:after{content:"";position:absolute;left:10%;right:10%;bottom:-10px;height:8px;border-left:8px solid #999;border-right:8px solid #999}
+
+.bottle{position:absolute;z-index:8;right:8%;top:18%;width:42px;height:75px;border:2px solid #aeb9b4;border-radius:8px 8px 13px 13px;background:rgba(244,249,247,.74);display:none}
+.bottle.show{display:block}
+.bottle:before{content:"";position:absolute;left:15px;top:-25px;width:10px;height:28px;background:#d8dfdb;border-radius:4px}
+.bottle:after{content:"";position:absolute;left:20px;top:-22px;width:39px;height:8px;background:#c6cfca;border-radius:8px;transform:rotate(-18deg);transform-origin:left center}
+.drops{position:absolute;z-index:9;left:24%;right:20%;top:25%;bottom:25%;display:none;pointer-events:none}
+.drops.show{display:block}
+.drop{position:absolute;width:7px;height:10px;background:#5ca6c8;border-radius:70% 30% 55% 45%;opacity:.62;transform:rotate(38deg)}
+
+.foil{position:absolute;z-index:12;left:12%;right:12%;top:18%;bottom:17%;border-radius:16px;display:none;
+ background:linear-gradient(115deg,#aeb4ba 0,#eceef0 17%,#c4c8cd 32%,#fafafa 49%,#b9bec4 67%,#e7e9eb 82%,#aeb4ba);
+ box-shadow:0 7px 16px rgba(50,55,60,.2)}
+.foil.show{display:block}
+.foil:before,.foil:after{content:"";position:absolute;border-top:2px solid rgba(255,255,255,.7);width:70%;left:15%;transform:rotate(8deg)}
+.foil:before{top:35%}.foil:after{top:64%;transform:rotate(-10deg)}
+
+.tape{position:absolute;z-index:11;left:50%;top:46%;transform:translate(-50%,-50%);width:min(84%,360px);height:min(66%,220px);min-height:205px;border:9px solid rgba(232,222,179,.8);border-radius:50%;display:none;box-sizing:border-box;pointer-events:none;box-shadow:0 0 0 1px rgba(148,132,84,.35)}
+.tape.show{display:block}
+
+/* Bottom */
+.bottom{display:grid;grid-template-columns:auto auto 1fr;gap:8px;align-items:center}
+.primary,.secondary{border:0;border-radius:10px;padding:10px 13px;font-weight:800}
+.primary{background:var(--green);color:#fff}
+.primary:disabled{background:#a9b1ac;color:#edf0ee;cursor:default}
+.secondary{background:#ebe6dd;color:#34463c}
+.status{min-height:39px;display:flex;align-items:center;padding:7px 10px;border-radius:9px;background:#efebe3;color:#4e5d54;font-size:13px}
+.status.ok{background:var(--green2);color:#24563f}
+.status.bad{background:var(--red2);color:#7e3f20}
+.timeline{display:none;grid-column:1/-1;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;font-size:12px;font-weight:700}
+.timeline.show{display:grid}
+.track{height:8px;border-radius:999px;background:#ded9d0;overflow:hidden}
+#timeFill{height:100%;width:0;background:var(--green)}
+
+/* Right */
+.right{padding:13px;display:flex;flex-direction:column;gap:9px;overflow:auto}
+.right h2{font-size:18px;margin:0}
+.task{font-size:14px;line-height:1.42;background:#f1eee7;border-radius:11px;padding:10px}
+.eval{display:none;gap:8px;flex-direction:column}
+.eval.show{display:flex}
+.q{font-size:13px;font-weight:800}
+select,textarea{width:100%;border:1px solid #ccc4b8;background:white;border-radius:9px;padding:9px;color:var(--ink)}
+textarea{min-height:76px;resize:none;-webkit-user-select:text;user-select:text}
+.feedback{display:none;font-size:13px;line-height:1.38;padding:9px;border-radius:9px}
+.feedback.show{display:block}
+.feedback.ok{background:var(--green2);color:#24563f}
+.feedback.bad{background:var(--red2);color:#7e3f20}
+.note{margin-top:auto;font-size:11px;line-height:1.35;color:var(--muted)}
+#reset{align-self:flex-start;border:0;background:none;color:#59675f;text-decoration:underline;padding:2px 0;font-size:11px}
+
+@media(max-width:900px){
+ main{grid-template-columns:minmax(0,1fr) 270px}
+ .stage{min-height:285px}
+}
+@media(max-width:720px){
+ body{overflow:auto}
+ #app{height:auto;min-height:100dvh}
+ main{grid-template-columns:1fr}
+ .experiments{grid-template-columns:1fr}
+ .tabs{grid-template-columns:1fr 1fr}
+ .stage{min-height:300px}
+}
+
+/* v3: alle Materialien stehen bei jedem Aufbau zur Auswahl */
+.controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;flex-wrap:initial}
+.add{padding:6px 5px;font-size:11px;min-height:36px;line-height:1.1}
+.dish{display:none}
+.dish.show{display:block}
+.uvlamp{position:absolute;z-index:15;left:7%;top:7%;width:116px;height:34px;border-radius:7px;background:#565d64;border:3px solid #31373c;display:none;box-shadow:0 5px 12px rgba(40,45,55,.24)}
+.uvlamp.show{display:block}
+.uvlamp:before{content:"";position:absolute;left:12px;right:12px;top:8px;height:12px;border-radius:4px;background:#6b6cff;box-shadow:0 0 16px #6d63ff,0 0 28px rgba(90,75,255,.6)}
+.uvglow{position:absolute;z-index:4;left:7%;right:7%;top:6%;bottom:16%;display:none;pointer-events:none;background:radial-gradient(ellipse at 30% 10%,rgba(94,82,255,.26),rgba(91,80,255,.10) 35%,transparent 65%)}
+.uvglow.show{display:block}
+@media(max-width:1050px){.controls{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.controls{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+
+@media(max-width:520px){
+ .dish{width:88%;height:210px;min-height:0}
+ .tape{width:88%;height:210px;min-height:0}
+ .toast{width:min(43%,155px)}
+}
+
+
+
+/* ===== iPad-Optimierung: komplette Anwendung ohne Seitenscrollen ===== */
+@media (min-width:700px) and (max-width:1366px){
+  html,body{height:100%;overflow:hidden}
+  #app{
+    height:100dvh;
+    min-height:0;
+    grid-template-rows:42px 42px minmax(0,1fr);
+    overflow:hidden;
+  }
+  header{padding:5px 10px;gap:8px}
+  header h1{font-size:20px;line-height:1.05}
+  #progress{font-size:11px;padding:5px 8px}
+
+  .tabs{padding:5px 8px;gap:5px}
+  .tab{padding:5px 6px;border-radius:8px;font-size:13px;min-height:31px}
+
+  main{
+    height:100%;min-height:0;overflow:hidden;
+    padding:6px;gap:6px;
+    grid-template-columns:minmax(0,1fr) 260px;
+  }
+  .card{border-radius:12px;min-height:0;overflow:hidden}
+  .left{padding:6px;gap:5px;grid-template-rows:26px minmax(0,1fr) auto}
+  .topline{min-height:0;gap:8px;overflow:hidden}
+  .topline h2{font-size:15px;white-space:nowrap}
+  .topline span{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .experiments{min-height:0;gap:6px}
+  .box{min-height:0;border-radius:10px;grid-template-rows:39px 66px minmax(0,1fr)}
+  .boxHead{padding:5px 7px}
+  .boxHead strong{font-size:14px;line-height:1}
+  .boxHead div{font-size:9px;line-height:1.15;margin-top:2px}
+
+  .controls{padding:4px;gap:3px;grid-template-columns:repeat(3,minmax(0,1fr));align-content:center}
+  .add{padding:3px 3px;min-height:27px;border-radius:6px;font-size:10px;line-height:1.05}
+
+  .stage{min-height:0;height:100%}
+  .emptyHint{font-size:11px;padding:18px}
+  .label{left:5px;bottom:4px;padding:3px 5px;font-size:8px;border-radius:6px;max-width:92%}
+
+  .dish{
+    top:45%;width:min(82%,300px);height:min(60%,170px);min-height:0;
+    border-width:5px;
+  }
+  .toast{top:45%;width:min(38%,135px);border-width:6px}
+  .tape{
+    top:45%;width:min(82%,300px);height:min(60%,170px);min-height:0;
+    border-width:8px;
+  }
+  .heater{left:19%;right:19%;bottom:9px;height:48px;border-width:2px}
+  .bottle{right:6%;top:10%;width:31px;height:53px}
+  .bottle:before{left:10px;top:-18px;width:8px;height:20px}
+  .bottle:after{left:14px;top:-16px;width:29px;height:6px}
+  .foil{left:10%;right:10%;top:12%;bottom:11%;border-radius:11px}
+
+  .bottom{grid-template-columns:auto auto minmax(0,1fr);gap:5px}
+  .primary,.secondary{padding:7px 9px;border-radius:8px;font-size:11px;white-space:nowrap}
+  .status{min-height:31px;padding:4px 7px;border-radius:7px;font-size:10px;line-height:1.15}
+  .timeline{font-size:10px;gap:5px}
+  .track{height:6px}
+
+  .right{padding:8px;gap:6px;overflow:hidden}
+  .right h2{font-size:15px;line-height:1.05}
+  .task{font-size:11px;line-height:1.25;padding:7px;border-radius:8px}
+  .eval{gap:5px;min-height:0}
+  .q{font-size:10px}
+  select,textarea{font-size:10px;padding:6px;border-radius:7px}
+  select{min-height:31px}
+  textarea{min-height:50px;height:50px}
+  .feedback{font-size:10px;line-height:1.2;padding:6px;border-radius:7px}
+  .note{font-size:9px;line-height:1.2;margin-top:auto}
+  #reset{font-size:9px;padding:1px 0}
+}
+
+/* iPad im Hochformat: trotzdem zwei Versuchsansätze nebeneinander, kein Scrollen */
+@media (min-width:700px) and (max-width:850px) and (orientation:portrait){
+  main{grid-template-columns:minmax(0,1fr) 225px;padding:5px;gap:5px}
+  .left{padding:5px}
+  .topline span{display:none}
+  .box{grid-template-rows:38px 78px minmax(0,1fr)}
+  .controls{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;padding:3px}
+  .add{font-size:9px;min-height:22px;padding:2px}
+  .dish{width:min(88%,225px);height:min(58%,155px)}
+  .tape{width:min(88%,225px);height:min(58%,155px)}
+  .toast{width:min(43%,105px)}
+  .right{padding:6px;gap:5px}
+  .task{font-size:10px;padding:6px}
+  select,textarea{font-size:9px;padding:5px}
+  textarea{height:44px;min-height:44px}
+  .primary,.secondary{font-size:10px;padding:6px 7px}
+  .status{font-size:9px}
+}
+
+/* Telefone dürfen weiterhin umbrechen; iPads bleiben von dieser Regel unberührt. */
+@media (max-width:699px){
+  body{overflow:auto}
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <h1>Schimmelpilz: Experiment und Kontrolle</h1>
+  <div id="progress">0 von 4 ausgewertet</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-factor="waerme">Wärme</button>
+  <button class="tab" data-factor="feuchtigkeit">Feuchtigkeit</button>
+  <button class="tab" data-factor="licht">Licht</button>
+  <button class="tab" data-factor="luft">Luft</button>
+</nav>
+
+<main>
+<section class="card left">
+  <div class="topline">
+    <h2 id="title">Untersuchungsfaktor: Wärme</h2>
+    <span>Wähle aus allen Materialien. Nur eine Bedingung darf verändert werden.</span>
+  </div>
+
+  <div class="experiments">
+    <section class="box">
+      <div class="boxHead"><strong>Experiment</strong><div>Hier wird die untersuchte Bedingung verändert.</div></div>
+      <div class="controls" id="expControls"></div>
+      <div class="stage">
+        <div class="emptyHint" id="expHint">Wähle die Materialien für deinen Aufbau.</div>
+        <div class="heater" id="expHeater"></div>
+        <div class="dish" id="expDish"></div>
+        <div class="toast" id="expToast"></div>
+        <div class="bottle" id="expBottle"></div>
+        <div class="drops" id="expDrops"></div>
+        <div class="foil" id="expFoil"></div>
+        <div class="tape" id="expTape"></div>
+        <div class="uvglow" id="expUVGlow"></div>
+        <div class="uvlamp" id="expUV"></div>
+        <div class="label" id="expLabel">Plastikschale mit Deckel</div>
+      </div>
+    </section>
+
+    <section class="box">
+      <div class="boxHead"><strong>Kontrolle</strong><div>Hier bleibt die untersuchte Bedingung unverändert.</div></div>
+      <div class="controls" id="ctrlControls"></div>
+      <div class="stage">
+        <div class="emptyHint" id="ctrlHint">Wähle die Materialien für deinen Aufbau.</div>
+        <div class="heater" id="ctrlHeater"></div>
+        <div class="dish" id="ctrlDish"></div>
+        <div class="toast" id="ctrlToast"></div>
+        <div class="bottle" id="ctrlBottle"></div>
+        <div class="drops" id="ctrlDrops"></div>
+        <div class="foil" id="ctrlFoil"></div>
+        <div class="tape" id="ctrlTape"></div>
+        <div class="uvglow" id="ctrlUVGlow"></div>
+        <div class="uvlamp" id="ctrlUV"></div>
+        <div class="label" id="ctrlLabel">Plastikschale mit Deckel</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="bottom">
+    <button class="secondary" id="check">Aufbau prüfen</button>
+    <button class="primary" id="simulate" disabled>1 Woche simulieren</button>
+    <div class="status" id="status">Baue Experiment und Kontrolle aus den angebotenen Materialien auf.</div>
+    <div class="timeline" id="timeline"><span id="day">Tag 0</span><div class="track"><div id="timeFill"></div></div><span>Tag 7</span></div>
+  </div>
+</section>
+
+<aside class="card right">
+  <h2>Aufgabe</h2>
+  <div class="task" id="task">Plane ein Experiment, das zeigt, ob Schimmel auf Toast bei Wärme besser wächst.</div>
+
+  <div class="eval" id="eval">
+    <div class="q">1. Was beobachtest du?</div>
+    <select id="obs">
+      <option value="">Beobachtung auswählen …</option>
+      <option value="more">Im Experiment ist mehr Schimmel.</option>
+      <option value="less">Im Experiment ist weniger Schimmel.</option>
+      <option value="same">In beiden Ansätzen ist ungefähr gleich viel Schimmel.</option>
+    </select>
+
+    <div class="q">2. Welche Schlussfolgerung passt?</div>
+    <select id="conclusion"></select>
+
+    <div class="q">3. Begründe deine Auswertung.</div>
+    <textarea id="reason" placeholder="Im Experiment … als in der Kontrolle. Deshalb …"></textarea>
+    <button class="primary" id="checkEval">Auswertung prüfen</button>
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <div class="note">Die Plastikschale mit Deckel gehört zum Material und muss für beide Ansätze ausgewählt werden. Die Ergebnisse sind eine vereinfachte Simulation.</div>
+  <button id="reset">Alle Versuche zurücksetzen</button>
+</aside>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var MATERIALS=[
+  {id:"dish", label:"Plastikschale"},
+  {id:"toast", label:"Toast"},
+  {id:"heater", label:"Heizkörper"},
+  {id:"water", label:"Spritzflasche"},
+  {id:"foil", label:"Alufolie"},
+  {id:"tape", label:"Tesa"},
+  {id:"uv", label:"UV-Lampe"}
+];
+
+var CFG={
+  waerme:{
+    name:"Wärme", correct:"heater",
+    task:"Überlege, wie du untersuchen kannst, ob Schimmel auf Toast durch Wärme besser wächst. Wähle nur die Materialien, die du wirklich brauchst.",
+    exp:0.80,ctrl:0.38,observation:"more",answer:"a",
+    conclusions:[["a","Wärme fördert in dieser Simulation das Schimmelwachstum."],["b","Wärme hemmt in dieser Simulation das Schimmelwachstum."],["c","Wärme hat in dieser Simulation keinen erkennbaren Einfluss."]]
+  },
+  feuchtigkeit:{
+    name:"Feuchtigkeit", correct:"water",
+    task:"Überlege, wie du untersuchen kannst, ob Schimmel auf Toast durch Feuchtigkeit besser wächst. Wähle nur die Materialien, die du wirklich brauchst.",
+    exp:0.88,ctrl:0.22,observation:"more",answer:"a",
+    conclusions:[["a","Feuchtigkeit fördert in dieser Simulation das Schimmelwachstum."],["b","Feuchtigkeit hemmt in dieser Simulation das Schimmelwachstum."],["c","Feuchtigkeit hat in dieser Simulation keinen erkennbaren Einfluss."]]
+  },
+  licht:{
+    name:"Licht", correct:"foil",
+    task:"Überlege, wie du untersuchen kannst, ob Licht das Schimmelwachstum beeinflusst. Wähle nur die Materialien, die du wirklich brauchst.",
+    exp:0.51,ctrl:0.45,observation:"same",answer:"c",
+    conclusions:[["a","Im Dunkeln wächst der Schimmel deutlich besser."],["b","Im Licht wächst der Schimmel deutlich besser."],["c","In dieser Simulation ist kein deutlicher Einfluss des Lichts erkennbar."]]
+  },
+  luft:{
+    name:"Luft", correct:"tape",
+    task:"Überlege, wie du untersuchen kannst, ob Luftzufuhr das Schimmelwachstum beeinflusst. Wähle nur die Materialien, die du wirklich brauchst.",
+    exp:0.20,ctrl:0.52,observation:"less",answer:"a",
+    conclusions:[["a","Mit Luftzufuhr wächst der Schimmel in dieser Simulation besser."],["b","Ohne Luftzufuhr wächst der Schimmel in dieser Simulation besser."],["c","Die Luftzufuhr hat in dieser Simulation keinen erkennbaren Einfluss."]]
+  }
+};
+
+var keys=["waerme","feuchtigkeit","licht","luft"];
+var factor="waerme";
+var state={};
+function freshSide(){return {dish:false,toast:false,heater:false,water:false,foil:false,tape:false,uv:false};}
+for(var i=0;i<keys.length;i++)state[keys[i]]={exp:freshSide(),ctrl:freshSide(),valid:false,simulated:false,done:false};
+
+function $(id){return document.getElementById(id);}
+var E={
+ title:$("title"),task:$("task"),progress:$("progress"),
+ expControls:$("expControls"),ctrlControls:$("ctrlControls"),
+ expDish:$("expDish"),ctrlDish:$("ctrlDish"),
+ expToast:$("expToast"),ctrlToast:$("ctrlToast"),
+ expHint:$("expHint"),ctrlHint:$("ctrlHint"),
+ expHeater:$("expHeater"),ctrlHeater:$("ctrlHeater"),
+ expBottle:$("expBottle"),ctrlBottle:$("ctrlBottle"),
+ expDrops:$("expDrops"),ctrlDrops:$("ctrlDrops"),
+ expFoil:$("expFoil"),ctrlFoil:$("ctrlFoil"),
+ expTape:$("expTape"),ctrlTape:$("ctrlTape"),
+ expUV:$("expUV"),ctrlUV:$("ctrlUV"),expUVGlow:$("expUVGlow"),ctrlUVGlow:$("ctrlUVGlow"),
+ expLabel:$("expLabel"),ctrlLabel:$("ctrlLabel"),
+ check:$("check"),simulate:$("simulate"),status:$("status"),
+ timeline:$("timeline"),day:$("day"),timeFill:$("timeFill"),
+ eval:$("eval"),obs:$("obs"),conclusion:$("conclusion"),reason:$("reason"),
+ checkEval:$("checkEval"),feedback:$("feedback"),reset:$("reset")
+};
+
+function addDrops(container){
+  container.innerHTML="";
+  var pos=[[15,18],[31,40],[52,22],[66,55],[78,34],[42,68],[21,72],[86,70],[60,82]];
+  for(var i=0;i<pos.length;i++){
+    var d=document.createElement("span");d.className="drop";d.style.left=pos[i][0]+"%";d.style.top=pos[i][1]+"%";container.appendChild(d);
+  }
+}
+addDrops(E.expDrops);addDrops(E.ctrlDrops);
+
+function buildControls(side){
+  var holder=side==="exp"?E.expControls:E.ctrlControls;
+  holder.innerHTML="";
+  for(var i=0;i<MATERIALS.length;i++){
+    var b=document.createElement("button");
+    b.className="add";b.type="button";b.setAttribute("data-side",side);b.setAttribute("data-mat",MATERIALS[i].id);b.textContent=MATERIALS[i].label;
+    b.onclick=function(){toggleMaterial(this.getAttribute("data-side"),this.getAttribute("data-mat"));};
+    holder.appendChild(b);
+  }
+}
+buildControls("exp");buildControls("ctrl");
+
+function seedFor(name,side){var base={waerme:13,feuchtigkeit:31,licht:53,luft:79}[name];return base+(side==="ctrl"?17:0);}
+function buildMold(toast,name,side){
+  var old=toast.querySelectorAll(".mold");while(old.length){old[0].parentNode.removeChild(old[0]);old=toast.querySelectorAll(".mold");}
+  var seed=seedFor(name,side);function rnd(){seed=(seed*9301+49297)%233280;return seed/233280;}
+  for(var i=0;i<24;i++){
+    var m=document.createElement("span");m.className="mold"+(i%5===0?" alt":"");m.style.left=(8+rnd()*84)+"%";m.style.top=(8+rnd()*84)+"%";
+    var size=12+rnd()*28;m.style.width=size+"%";m.style.height=size+"%";m.setAttribute("data-phase",(rnd()*.52).toFixed(2));toast.appendChild(m);
+  }
+}
+function showMold(toast,coverage,t){
+  var nodes=toast.querySelectorAll(".mold");
+  for(var i=0;i<nodes.length;i++){
+    var phase=parseFloat(nodes[i].getAttribute("data-phase"));var local=(t-phase)/(1-phase);if(local<0)local=0;if(local>1)local=1;
+    var strength=local*coverage;var scale=.12+strength*(.70+coverage*.65);nodes[i].style.opacity=local>0?String(Math.min(.94,.12+strength*1.05)):"0";
+    nodes[i].style.transform="translate(-50%,-50%) scale("+scale+")";
+  }
+}
+
+function setShow(el,on){if(on)el.classList.add("show");else el.classList.remove("show");}
+function countSelected(obj){var n=0;for(var i=0;i<MATERIALS.length;i++)if(obj[MATERIALS[i].id])n++;return n;}
+function materialNames(obj){var a=[];for(var i=0;i<MATERIALS.length;i++)if(obj[MATERIALS[i].id])a.push(MATERIALS[i].label);return a;}
+
+function updateSide(side){
+  var s=state[factor][side];var p=side==="exp"?"exp":"ctrl";
+  var holder=side==="exp"?E.expControls:E.ctrlControls;var buttons=holder.querySelectorAll(".add");
+  for(var i=0;i<buttons.length;i++){var m=buttons[i].getAttribute("data-mat");buttons[i].className="add"+(s[m]?" on":"");}
+  setShow(E[p+"Dish"],s.dish);setShow(E[p+"Toast"],s.toast);setShow(E[p+"Heater"],s.heater);
+  setShow(E[p+"Bottle"],s.water);setShow(E[p+"Drops"],s.water);setShow(E[p+"Foil"],s.foil);setShow(E[p+"Tape"],s.tape);setShow(E[p+"UV"],s.uv);setShow(E[p+"UVGlow"],s.uv);
+  E[p+"Hint"].className="emptyHint"+(countSelected(s)?" hide":"");
+  var names=materialNames(s);E[p+"Label"].textContent=names.length?names.join(" • "):"Noch kein Material ausgewählt";
+}
+
+function updateProgress(){
+  var n=0;for(var i=0;i<keys.length;i++)if(state[keys[i]].done)n++;E.progress.textContent=n+" von 4 ausgewertet";
+  var tabs=document.querySelectorAll(".tab");for(var j=0;j<tabs.length;j++){var k=tabs[j].getAttribute("data-factor");if(state[k].done)tabs[j].classList.add("done");else tabs[j].classList.remove("done");}
+}
+function setStatus(text,type){E.status.className="status"+(type?" "+type:"");E.status.textContent=text;}
+function resetResultUI(){E.timeline.classList.remove("show");E.timeFill.style.width="0%";E.day.textContent="Tag 0";E.eval.classList.remove("show");E.feedback.className="feedback";E.feedback.textContent="";E.obs.value="";E.reason.value="";}
+function fillConclusions(){var arr=CFG[factor].conclusions,html='<option value="">Schlussfolgerung auswählen …</option>';for(var i=0;i<arr.length;i++)html+='<option value="'+arr[i][0]+'">'+arr[i][1]+'</option>';E.conclusion.innerHTML=html;}
+
+function render(){
+  var c=CFG[factor],s=state[factor];E.title.textContent="Untersuchungsfaktor: "+c.name;E.task.textContent=c.task;
+  updateSide("exp");updateSide("ctrl");buildMold(E.expToast,factor,"exp");buildMold(E.ctrlToast,factor,"ctrl");showMold(E.expToast,0,0);showMold(E.ctrlToast,0,0);
+  resetResultUI();fillConclusions();E.simulate.disabled=!s.valid||s.simulated;E.simulate.textContent=s.simulated?"Simulation abgeschlossen":"1 Woche simulieren";
+  if(s.simulated){
+    showMold(E.expToast,c.exp,1);showMold(E.ctrlToast,c.ctrl,1);
+    if(c.correct==="foil"&&s.exp.foil){E.expFoil.classList.remove("show");E.expLabel.textContent+=" • Folie zur Auswertung abgenommen";}
+    E.timeline.classList.add("show");E.timeFill.style.width="100%";E.day.textContent="Tag 7";E.eval.classList.add("show");
+  }
+  if(s.valid&&!s.simulated)setStatus("Aufbau ist geeignet. Starte jetzt die Simulation.","ok");else setStatus("Baue Experiment und Kontrolle aus den angebotenen Materialien auf.","");
+  var tabs=document.querySelectorAll(".tab");for(var i=0;i<tabs.length;i++){if(tabs[i].getAttribute("data-factor")===factor)tabs[i].classList.add("active");else tabs[i].classList.remove("active");}
+  updateProgress();
+}
+
+function toggleMaterial(side,mat){var s=state[factor];s[side][mat]=!s[side][mat];s.valid=false;s.simulated=false;s.done=false;render();}
+
+var tabs=document.querySelectorAll(".tab");for(var ti=0;ti<tabs.length;ti++)tabs[ti].onclick=function(){factor=this.getAttribute("data-factor");render();};
+
+function exactSetup(obj,correct,isExperiment){
+  if(!obj.dish||!obj.toast)return false;
+  for(var i=0;i<MATERIALS.length;i++){
+    var id=MATERIALS[i].id;if(id==="dish"||id==="toast")continue;
+    if(isExperiment){if(id===correct){if(!obj[id])return false;}else if(obj[id])return false;}
+    else if(obj[id])return false;
+  }
+  return true;
+}
+
+E.check.onclick=function(){
+  var s=state[factor],c=CFG[factor];var expOk=exactSetup(s.exp,c.correct,true),ctrlOk=exactSetup(s.ctrl,c.correct,false),ok=expOk&&ctrlOk;s.valid=ok;E.simulate.disabled=!ok;
+  if(ok){setStatus("Richtig: Beide Ansätze bestehen aus Plastikschale und Toast. Nur im Experiment wurde genau die untersuchte Bedingung verändert.","ok");return;}
+  var msg=[];
+  if(!s.exp.dish||!s.ctrl.dish)msg.push("Beide Ansätze benötigen eine Plastikschale mit Deckel.");
+  if(!s.exp.toast||!s.ctrl.toast)msg.push("Beide Ansätze benötigen Toast.");
+  var expExtra=false,ctrlExtra=false;
+  for(var i=0;i<MATERIALS.length;i++){var id=MATERIALS[i].id;if(id!=="dish"&&id!=="toast"&&id!==c.correct&&s.exp[id])expExtra=true;if(id!=="dish"&&id!=="toast"&&s.ctrl[id])ctrlExtra=true;}
+  if(expExtra)msg.push("Im Experiment wurden zusätzliche Bedingungen verändert.");
+  if(ctrlExtra)msg.push("In der Kontrolle wurde eine zusätzliche Bedingung verändert.");
+  if(s.exp.dish&&s.exp.toast&&!s.exp[c.correct])msg.push("Die untersuchte Bedingung wurde im Experiment noch nicht passend verändert.");
+  if(!msg.length)msg.push("Prüfe noch einmal, ob sich Experiment und Kontrolle wirklich nur in einer Bedingung unterscheiden.");
+  setStatus(msg.join(" "),"bad");
+};
+
+E.simulate.onclick=function(){
+  var s=state[factor],c=CFG[factor];if(!s.valid||s.simulated)return;E.simulate.disabled=true;E.timeline.classList.add("show");E.eval.classList.remove("show");var step=0,steps=35;
+  var timer=setInterval(function(){
+    step++;var f=step/steps,growth=Math.pow(f,1.45);E.day.textContent="Tag "+Math.min(7,Math.floor(f*7));E.timeFill.style.width=(f*100)+"%";showMold(E.expToast,c.exp,growth);showMold(E.ctrlToast,c.ctrl,growth);
+    if(step>=steps){clearInterval(timer);s.simulated=true;E.day.textContent="Tag 7";E.timeFill.style.width="100%";showMold(E.expToast,c.exp,1);showMold(E.ctrlToast,c.ctrl,1);
+      if(c.correct==="foil"&&s.exp.foil){E.expFoil.classList.remove("show");E.expLabel.textContent+=" • Folie zur Auswertung abgenommen";}
+      E.eval.classList.add("show");E.simulate.textContent="Simulation abgeschlossen";setStatus("Simulation beendet. Vergleiche jetzt Experiment und Kontrolle.","ok");}
+  },85);
+};
+
+E.checkEval.onclick=function(){
+  var c=CFG[factor],s=state[factor];if(!s.simulated)return;var o=E.obs.value===c.observation,co=E.conclusion.value===c.answer,r=E.reason.value.replace(/\s+/g," ").trim().length>=15;
+  if(o&&co&&r){s.done=true;E.feedback.className="feedback show ok";E.feedback.textContent="Die Auswertung passt. Beobachtung und Schlussfolgerung stimmen mit dem simulierten Ergebnis überein.";}
+  else{s.done=false;var text=[];if(!o)text.push("Vergleiche noch einmal die sichtbare Schimmelmenge.");if(!co)text.push("Wähle eine Schlussfolgerung, die zu deiner Beobachtung passt.");if(!r)text.push("Schreibe noch eine kurze Begründung.");E.feedback.className="feedback show bad";E.feedback.textContent=text.join(" ");}
+  updateProgress();
+};
+
+E.reset.onclick=function(){for(var i=0;i<keys.length;i++)state[keys[i]]={exp:freshSide(),ctrl:freshSide(),valid:false,simulated:false,done:false};factor="waerme";render();};
+
+render();
+})();
+</script>
+</body>
+</html>
