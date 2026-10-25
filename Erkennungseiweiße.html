@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#f7f9fc">
+<title>Virus und Rezeptor – Schlüssel-Schloss-Prinzip</title>
+<style>
+ :root{--ink:#202e39;--muted:#566b7d;--border:#dfe6ef;--purple:#8843bb;--red:#e04459;--orange:#ed8320;--green:#24b868;--bg:#f7f9fc}
+ *{box-sizing:border-box}
+ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif}
+ body{overscroll-behavior:none}
+ .app{height:100vh;height:100dvh;max-width:1680px;margin:auto;padding:clamp(10px,1.8vh,18px) clamp(12px,2.2vw,28px);display:flex;flex-direction:column;gap:10px}
+ .top{display:flex;align-items:flex-start;gap:16px;justify-content:space-between;flex-wrap:wrap}
+ h1{margin:0;font-weight:800;letter-spacing:-.035em;font-size:clamp(22px,2.5vw,32px);line-height:1.12}
+ .intro{margin:6px 0 0;font-size:clamp(13px,1.3vw,17px);line-height:1.4;color:var(--muted);max-width:780px}
+ .toolbar{display:flex;align-items:center;gap:8px;flex-shrink:0}
+ button{appearance:none;border:1px solid #cbd6e2;background:#fff;border-radius:12px;min-height:44px;padding:9px 16px;font:700 15px/1.2 inherit;color:var(--ink);cursor:pointer;box-shadow:0 2px 6px #1d334b0e}
+ button:hover{background:#f0f5fa}button:focus-visible{outline:3px solid #6c9cea;outline-offset:3px}
+ .legend{display:flex;align-items:center;gap:10px 25px;flex-wrap:wrap;padding:8px 14px;background:white;border:1px solid var(--border);border-radius:12px;font-size:clamp(12px,1.15vw,14px);font-weight:630;color:#344556}
+ .legend span{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+ .chip{width:15px;height:15px;border-radius:50%;border:2px solid #22313d;display:inline-block;flex:none}
+ .chip.grey{background:#d6dde4}.chip.orange{background:var(--orange);border-color:var(--orange)}
+ .chip.purple{background:var(--purple);border-color:var(--purple)}.chip.red{background:var(--red);border-color:var(--red)}
+ .stage-card{position:relative;flex:1;min-height:0;background:white;border:1px solid var(--border);border-radius:18px;box-shadow:0 5px 22px #18304b0a;overflow:hidden;display:flex;align-items:center;justify-content:center}
+ #stage{display:block;width:100%;height:100%;min-height:0;user-select:none;-webkit-user-select:none}
+ #virus{cursor:grab;touch-action:none;outline:none}#virus.is-dragging{cursor:grabbing}#virus.is-docked{cursor:default}
+ .virus-hit{fill:transparent;stroke:none}
+ .cell-surface{fill:#e3e8ed;stroke:#263440;stroke-width:4;stroke-linejoin:round}
+ .receptor-edge{fill:none;stroke:var(--red);stroke-width:8;stroke-linecap:round;stroke-linejoin:round}
+ .cell.active .cell-surface{stroke:#4e697b;stroke-width:5}
+ .cell.near .receptor-edge{stroke-width:11}
+ .cell.near .receptor-glow{opacity:1}
+ .receptor-glow{opacity:0;fill:none;stroke:#eda8b4;stroke-width:22;stroke-linecap:round;stroke-linejoin:round}
+ .virus-shell{fill:#dbe1e6;stroke:#263440;stroke-width:4}
+ .spike-tip{fill:var(--purple);stroke:#5f258d;stroke-width:1.4;stroke-linejoin:round}
+ .dna{fill:none;stroke:var(--orange);stroke-width:5.2;stroke-linecap:round;stroke-linejoin:round}
+ .nucleus{fill:none;stroke:var(--green);stroke-width:4}
+ .nucleus-dna{fill:none;stroke:#4fcf8c;stroke-width:2.6;stroke-linecap:round}
+ .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+ @media(max-width:760px){.app{gap:7px;padding:8px}.top{gap:8px}h1{font-size:21px}.intro{font-size:12px}.legend{gap:5px 10px;padding:7px 9px;font-size:11px}.chip{width:10px;height:10px}button{min-height:38px;padding:7px 12px;font-size:13px}}
+ @media(orientation:portrait) and (max-width:700px){.stage-card{min-height:450px;overflow-x:auto;justify-content:flex-start}#stage{min-width:840px;max-width:none}body{overscroll-behavior:auto}.app{min-height:100dvh;height:auto}.stage-card{flex:1}}
+ @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001s!important;transition-duration:.001s!important}}
+</style>
+</head>
+<body>
+<div class="app">
+ <header class="top">
+  <div><h1>Arbeitsauftrag</h1><p class="intro">Ziehe das Virus zu den Zellen. Finde heraus, an welcher Zelle es mit seinem Erkennungseiweiß andocken und seine Erbsubstanz übertragen kann.</p></div>
+  <div class="toolbar"><button type="button" id="resetButton">↻ Neuer Versuch</button></div>
+ </header>
+ <div class="legend" aria-label="Farblegende">
+  <span><i class="chip grey"></i>Proteinhülle</span>
+  <span><i class="chip orange"></i>Virale Erbsubstanz</span>
+  <span><i class="chip purple"></i>Erkennungseiweiß</span>
+  <span><i class="chip red"></i>Rezeptor der Zelle</span>
+  <span><i class="chip" style="border-color:var(--green);background:transparent"></i>Erbsubstanz der Zelle</span>
+ </div>
+ <div class="stage-card">
+  <svg id="stage" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 710" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Verschiebbares graues Virus mit oranger Erbsubstanz und ausschließlich viereckigen violetten Erkennungseiweißen. Darunter drei Zellen mit unterschiedlichen Rezeptoren.">
+   <defs>
+    <filter id="softGlow" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="5"/></filter>
+   </defs>
+   <g id="cellLayer"></g>
+   <g id="injectionLayer" pointer-events="none"></g>
+   <g id="virus" tabindex="0" role="button" aria-label="Virus. Mit Finger oder Maus zu einem Rezeptor ziehen." transform="translate(600 170)">
+    <!-- Ein einziger Erkennungseiweiß-Typ: alle Oberflächenproteine sind Vierecke, die direkt an der Hülle beginnen. -->
+    <g id="spikesDecor">
+     <g transform="rotate(0)"><rect class="spike-tip" x="-12" y="-71" width="24" height="22" rx="1"/></g>
+     <g transform="rotate(45)"><rect class="spike-tip" x="-12" y="-71" width="24" height="22" rx="1"/></g>
+     <g transform="rotate(90)"><rect class="spike-tip" x="-12" y="-71" width="24" height="22" rx="1"/></g>
+     <g transform="rotate(135)"><rect class="spike-tip" x="-12" y="-71" width="24" height="22" rx="1"/></g>
+     <g transform="rotate(225)"><rect class="spike-tip" x="-12" y="-71" width="24" height="22" rx="1"/></g>
+     <g transform="rotate(270)"><rect class="spike-tip" x="-12" y="-71" width="24" height="22" rx="1"/></g>
+     <g transform="rotate(315)"><rect class="spike-tip" x="-12" y="-71" width="24" height="22" rx="1"/></g>
+    </g>
+    <circle class="virus-shell" r="49"/>
+    <path class="dna" id="dnaInsideVirus" d="M-18 -16 C-33 -28 -4 -31 9 -22 S16 -1 -1 1 S-20 14 -3 18 S19 28 19 14"/>
+    <!-- Das untere Erkennungseiweiß ist ein Viereck und passt nur in den passenden Rezeptor. -->
+    <rect class="spike-tip" x="-14" y="49" width="28" height="30" rx="1" ry="1"/>
+    <circle class="virus-hit" r="91"/>
+   </g>
+  </svg>
+ </div>
+ <div class="sr-only" id="status" data-kind="info" role="status" aria-live="polite"><span id="statusIcon" aria-hidden="true"></span><span id="statusText"></span></div>
+</div>
+<script>
+(function(){
+ 'use strict';
+ const NS='http://www.w3.org/2000/svg';
+ const svg=document.getElementById('stage');
+ const virus=document.getElementById('virus');
+ const genome=document.getElementById('dnaInsideVirus');
+ const cellsLayer=document.getElementById('cellLayer');
+ const injectionLayer=document.getElementById('injectionLayer');
+ const button=document.getElementById('resetButton');
+ const status=document.getElementById('status');
+ const statusText=document.getElementById('statusText');
+ const statusIcon=document.getElementById('statusIcon');
+ const START={x:600,y:170}, DOCK_Y=401;
+ const baseCells=[{x:54,center:208},{x:446,center:600},{x:838,center:992}];
+ const MATCH_SHAPE='square';
+ const shapeOrders=[['semicircle','triangle','square'],['square','semicircle','triangle'],['triangle','square','semicircle']];
+ let turn=0, cells=[],pos={...START},drag=null,locked=false,animating=false,animationFrame=0,moveFrame=0,finishTimer=0;
+ function svgEl(tag,attributes={},textValue){
+   const el=document.createElementNS(NS,tag);
+   Object.keys(attributes).forEach(k=>el.setAttribute(k,String(attributes[k])));
+   if(textValue!==undefined)el.textContent=textValue;
+   return el;
+ }
+ function shapePath(type,cx,y){
+   if(type==='triangle')return `L${cx-20} ${y} L${cx} ${y+31} L${cx+20} ${y}`;
+   if(type==='square')return `L${cx-22} ${y} L${cx-22} ${y+30} L${cx+22} ${y+30} L${cx+22} ${y}`;
+   return `L${cx-24} ${y} A24 24 0 0 0 ${cx+24} ${y}`;
+ }
+ function notchOnly(type,cx,y){return 'M'+shapePath(type,cx,y).slice(1);}
+ function cellOutline(x,cx,y,type){
+  return `M${x+78} ${y} ${shapePath(type,cx,y)} L${x+234} ${y} C${x+281} ${y} ${x+312} ${y+36} ${x+312} ${y+88} L${x+312} ${y+102} C${x+312} ${y+155} ${x+280} ${y+190} ${x+234} ${y+190} L${x+78} ${y+190} C${x+30} ${y+190} ${x} ${y+152} ${x} ${y+102} L${x} ${y+88} C${x} ${y+35} ${x+31} ${y} ${x+78} ${y} Z`;
+ }
+ function renderCells(){
+  cellsLayer.replaceChildren();
+  const types=shapeOrders[turn%shapeOrders.length];
+  cells=baseCells.map((def,index)=>({x:def.x,cx:def.center,type:types[index],index}));
+  cells.forEach(cell=>{
+   const {x,cx,type,index}=cell,y=450;
+   const group=svgEl('g',{class:'cell','data-index':index});cell.node=group;
+   const shell=svgEl('path',{class:'cell-surface',d:cellOutline(x,cx,y,type)});
+   const glow=svgEl('path',{class:'receptor-glow',d:notchOnly(type,cx,y)});
+   const socket=svgEl('path',{class:'receptor-edge',d:notchOnly(type,cx,y)});
+   // Das grüne Oval zeigt die Erbsubstanz der Wirtszelle – nach der Vorlage.
+   const nucleus=svgEl('ellipse',{class:'nucleus',cx:cx+83,cy:558,rx:35,ry:42});
+   const nuclearStrand=svgEl('path',{class:'nucleus-dna',d:`M${cx+71} 540 Q${cx+98} 548 ${cx+77} 560 T${cx+95} 580`});
+   group.append(shell,nucleus,nuclearStrand,glow,socket);
+   cellsLayer.appendChild(group);
+  });
+ }
+ function setStatus(message,kind='info'){
+  statusText.textContent=message;status.dataset.kind=kind;
+  statusIcon.textContent=kind==='success'?'✓':kind==='error'?'!':kind==='working'?'→':'i';
+ }
+ function setVirusPos(x,y){pos.x=x;pos.y=y;virus.setAttribute('transform',`translate(${x} ${y})`);}
+ function toSvg(evt){
+  const matrix=svg.getScreenCTM();if(!matrix)return {x:0,y:0};
+  const p=svg.createSVGPoint();p.x=evt.clientX;p.y=evt.clientY;
+  return p.matrixTransform(matrix.inverse());
+ }
+ function clamp(a,lo,hi){return Math.min(hi,Math.max(lo,a));}
+ function nearestCell(){let best=null,dist=Infinity;
+  cells.forEach(c=>{let d=Math.hypot(pos.x-c.cx,pos.y-DOCK_Y);if(d<dist){dist=d;best=c;}});
+  return {cell:best,dist};
+ }
+ function updateNear(){const {cell,dist}=nearestCell();cells.forEach(c=>{
+  c.node.classList.toggle('near',c===cell && dist<70);
+ });}
+ function animateBack(){
+  cancelAnimationFrame(moveFrame);
+  const from={...pos};const started=performance.now();
+  function tick(t){const p=clamp((t-started)/420,0,1),e=1-Math.pow(1-p,3);
+   setVirusPos(from.x+(START.x-from.x)*e,from.y+(START.y-from.y)*e);
+   if(p<1)moveFrame=requestAnimationFrame(tick);
+  }
+  moveFrame=requestAnimationFrame(tick);
+  cells.forEach(c=>c.node.classList.remove('near'));
+ }
+ function down(evt){
+  if(locked || animating || drag || evt.button!==undefined&&evt.button!==0)return;
+  evt.preventDefault();cancelAnimationFrame(moveFrame);
+  const point=toSvg(evt);
+  drag={id:evt.pointerId,dx:pos.x-point.x,dy:pos.y-point.y,moved:false,startX:point.x,startY:point.y};
+  virus.classList.add('is-dragging');
+  try{virus.setPointerCapture(evt.pointerId);}catch(_){}
+  setStatus('Positioniere die passende violette Form in einer der roten Vertiefungen.','info');
+ }
+ function move(evt){
+  if(!drag || drag.id!==evt.pointerId)return;
+  evt.preventDefault();
+  const point=toSvg(evt);
+  if(Math.hypot(point.x-drag.startX,point.y-drag.startY)>3)drag.moved=true;
+  setVirusPos(clamp(point.x+drag.dx,96,1104),clamp(point.y+drag.dy,102,410));
+  updateNear();
+ }
+ function up(evt){
+  if(!drag || drag.id!==evt.pointerId)return;
+  evt.preventDefault();
+  const didMove=drag.moved;drag=null;virus.classList.remove('is-dragging');
+  try{if(virus.hasPointerCapture(evt.pointerId))virus.releasePointerCapture(evt.pointerId);}catch(_){}
+  if(!didMove)return;
+  const {cell,dist}=nearestCell();
+  if(dist<65 && cell.type!==MATCH_SHAPE){
+   setStatus('Das Erkennungseiweiß passt nicht in diesen Rezeptor. Probiere eine andere Zelle.','error');
+   animateBack();return;
+  }
+  if(cell.type===MATCH_SHAPE && Math.abs(pos.x-cell.cx)<=31 && Math.abs(pos.y-DOCK_Y)<=34){
+   dock(cell);return;
+  }
+  if(dist<88){setStatus('Die Formen müssen genau ineinanderpassen. Positioniere die violette Form genau in der roten Vertiefung.','error');}
+  else setStatus('Das Virus konnte hier nicht andocken. Probiere die Rezeptoren der Zellen aus.','info');
+  animateBack();
+ }
+ function cancel(evt){if(!drag || evt.pointerId!==drag.id)return;drag=null;virus.classList.remove('is-dragging');animateBack();}
+ function dock(cell){
+  locked=true;virus.classList.add('is-docked');
+  setVirusPos(cell.cx,DOCK_Y);
+  cells.forEach(c=>c.node.classList.toggle('active',c===cell));
+  cells.forEach(c=>c.node.classList.remove('near'));
+  setStatus('Die Formen passen zusammen! Das Virus dockt an. Beobachte die virale Erbsubstanz.','working');
+  animating=true;
+  finishTimer=setTimeout(()=>inject(cell),450);
+ }
+ // Kontinuierlicher Faden statt Austausch zweier DNA-Zeichnungen:
+ // Der gesamte sichtbare Faden ist zu jedem Zeitpunkt nur EIN SVG-Pfad.
+ // Seine Spitze wird zuerst aus dem Virus geführt. Der Rest folgt exakt
+ // derselben Bahn und wickelt sich in der Zelle auf, ohne zu verschwinden.
+ const originalGenomePath=genome.getAttribute('d');
+ const transferGuide=svgEl('path',{
+   d:originalGenomePath+
+     // Austritt durch die untere Virushülle und das passende Erkennungseiweiß.
+     ' C25 32 14 41 0 51 C-5 60 -2 77 0 97'+
+     // Danach eine gut sichtbare, fließende Schlangenlinie in der Wirtszelle.
+     ' C-2 114 -40 114 -39 132 C-38 152 39 137 38 159'+
+     ' C37 180 -40 167 -39 190 C-37 210 34 195 32 218'+
+     // Zum Ende hin wickelt sich der gesamte sichtbare Faden oberhalb
+     // des Zellbodens in sanften Bögen auf.
+     ' C32 236 -37 233 -35 212 C-35 193 30 200 30 181'+
+     ' C30 160 -27 168 -24 151 C-20 137 17 147 16 161',
+   fill:'none',stroke:'none','aria-hidden':'true'
+ });
+ svg.querySelector('defs').appendChild(transferGuide);
+ const originalLength=genome.getTotalLength();
+ const travelLength=transferGuide.getTotalLength()-originalLength;
+ // Die Ausgangs-DNA selbst gehört zum ersten Abschnitt der Trajektorie.
+ // Deshalb liegen bei Fortschritt 0 alle Punkte pixelgenau an ihrer
+ // Ausgangsposition und das Bild springt beim Animationsstart nicht.
+ function placeGenome(offset){
+  if(offset<=0){genome.setAttribute('d',originalGenomePath);return;}
+  const points=[];
+  const segments=Math.ceil(originalLength/1.6);
+  for(let i=0;i<=segments;i++){
+   const p=transferGuide.getPointAtLength(offset + originalLength*i/segments);
+   points.push(p.x.toFixed(2)+' '+p.y.toFixed(2));
+  }
+  genome.setAttribute('d','M'+points.join(' L'));
+ }
+ function inject(cell){
+  const duration=5200;
+  let startTime=null;
+  setStatus('Die virale Erbsubstanz gleitet als durchgehender Faden aus dem Virus in die Zelle.','working');
+  const ease=p=>p<0.15
+    ? p*p/(2*0.15*(1-0.15))
+    : p>0.85
+      ? 1-(1-p)*(1-p)/(2*0.15*(1-0.15))
+      : (p-0.075)/(1-0.15);
+  function frame(now){
+   if(startTime===null)startTime=now;
+   const progress=clamp((now-startTime)/duration,0,1);
+   placeGenome(travelLength*ease(progress));
+   if(progress<1)animationFrame=requestAnimationFrame(frame);
+   else completeInjection(cell);
+  }
+  animationFrame=requestAnimationFrame(frame);
+ }
+ function completeInjection(cell){
+  placeGenome(travelLength);
+  setStatus(`Geschafft! Das Virus konnte an Zelle ${cell.index+1} andocken. Die virale Erbsubstanz wurde in die Zelle übertragen.`,'success');
+  animating=false;
+ }
+ function reset(){
+  cancelAnimationFrame(animationFrame);cancelAnimationFrame(moveFrame);clearTimeout(finishTimer);
+  turn++;locked=false;animating=false;drag=null;
+  virus.classList.remove('is-dragging','is-docked');
+  placeGenome(0);genome.removeAttribute('transform');
+  injectionLayer.replaceChildren();
+  renderCells();setVirusPos(START.x,START.y);
+  setStatus('Finde heraus, an welcher Zelle das Virus mit seiner viereckigen Andockstelle andocken kann.','info');
+ }
+ renderCells();
+ virus.addEventListener('pointerdown',down);
+ virus.addEventListener('pointermove',move);
+ virus.addEventListener('pointerup',up);
+ virus.addEventListener('pointercancel',cancel);
+ virus.addEventListener('lostpointercapture',()=>{if(drag){drag=null;virus.classList.remove('is-dragging');animateBack();}});
+ virus.addEventListener('keydown',evt=>{
+  if(locked || animating)return;
+  if(['ArrowRight','ArrowLeft','ArrowDown','ArrowUp'].includes(evt.key)){
+   evt.preventDefault();cancelAnimationFrame(moveFrame);
+   const step=evt.shiftKey?20:10;
+   setVirusPos(clamp(pos.x+(evt.key==='ArrowRight'?step:evt.key==='ArrowLeft'?-step:0),96,1104),clamp(pos.y+(evt.key==='ArrowDown'?step:evt.key==='ArrowUp'?-step:0),102,410));updateNear();
+  }
+  if(evt.key==='Enter'||evt.key===' '){evt.preventDefault();const {cell}=nearestCell();
+   if(cell.type===MATCH_SHAPE&&Math.abs(pos.x-cell.cx)<=31&&Math.abs(pos.y-DOCK_Y)<=34){dock(cell);return;}
+   setStatus('Die Formen passen noch nicht ineinander.','error');animateBack();}
+ });
+ button.addEventListener('click',reset);
+})();
+</script>
+</body>
+</html>
