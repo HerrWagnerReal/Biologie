@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Konjugation – Ursuppe Prototyp V4.8</title>
+<style>
+  :root{
+    --bg:#07131b;
+    --water:#0a1c27;
+    --panel:rgba(8,18,29,.88);
+    --panelStrong:rgba(8,18,29,.97);
+    --line:rgba(255,255,255,.16);
+    --text:#f4fbff;
+    --muted:#b7c9d6;
+    --common:#b8bec8;
+    --uncommon:#4ea1ff;
+    --rare:#ffd554;
+  }
+
+  *{box-sizing:border-box}
+
+  html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#03090e;
+    color:var(--text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-touch-callout:none;
+    touch-action:none;
+  }
+
+  /* Feste logische 4:3-Spielfläche. Der gesamte Stage wird in JS
+     gleichmäßig skaliert, niemals in X/Y unterschiedlich gestreckt. */
+  #stage{
+    position:absolute;
+    left:0;
+    top:0;
+    width:1024px;
+    height:768px;
+    overflow:hidden;
+    transform-origin:top left;
+    background:var(--water);
+    box-shadow:0 0 45px rgba(0,0,0,.6);
+  }
+
+  #game{
+    position:absolute;
+    inset:0;
+    width:1024px;
+    height:768px;
+    display:block;
+    background:var(--water);
+  }
+
+  .box{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:11px;
+    backdrop-filter:blur(5px);
+    box-shadow:0 5px 16px rgba(0,0,0,.22);
+  }
+
+  /* Nur eine schmale Informationsleiste oben. */
+  #topRow{
+    position:absolute;
+    left:10px;
+    right:10px;
+    top:9px;
+    z-index:20;
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:stretch;
+    gap:7px;
+    height:55px;
+    pointer-events:none;
+  }
+
+  #hud{
+    width:292px;
+    padding:6px 8px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:7px;
+  }
+
+  .miniStat{
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+  }
+  .miniHead{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:4px;
+    font-size:10px;
+    line-height:1;
+    margin-bottom:5px;
+    white-space:nowrap;
+  }
+  .miniHead strong{font-size:11px}
+  .miniBar{
+    height:7px;
+    background:#223744;
+    border-radius:999px;
+    overflow:hidden;
+  }
+  .fill{height:100%;width:50%;transition:width .12s linear}
+  #lifeFill{background:#ff5a6d}
+  #energyFill{background:#ffd15c}
+  #wallFill{background:#61d7ff}
+
+  #missionBox{
+    position:relative !important;
+    left:auto !important;
+    bottom:auto !important;
+    width:auto !important;
+    flex:1 1 auto;
+    min-width:250px;
+    padding:6px 9px !important;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  #missionTitle{
+    display:block;
+    font-size:10px;
+    line-height:1;
+    color:#9fbecc;
+    margin-bottom:4px;
+  }
+  #missionText{
+    font-size:11px !important;
+    line-height:1.15;
+    color:#eef8fc !important;
+    margin:0 !important;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  #missionProgress{
+    font-size:10px !important;
+    line-height:1.1;
+    margin-top:4px !important;
+    color:#bcd5df;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  #resistanceStrip{
+    width:148px;
+    padding:6px 7px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+  }
+  .resTitle{
+    font-size:9px;
+    color:#a9c2ce;
+    margin-bottom:5px;
+  }
+  .resRow{
+    display:flex;
+    gap:5px;
+  }
+  .resChip{
+    width:27px;
+    height:24px;
+    display:grid;
+    place-items:center;
+    border-radius:7px;
+    border:1px solid rgba(255,255,255,.16);
+    background:rgba(255,255,255,.07);
+    color:#7d939e;
+    font-size:10px;
+    font-weight:900;
+  }
+  .resChip.on{
+    color:#07131b;
+    background:#8cf0a0;
+    border-color:#c9ffd2;
+  }
+  #resAcid.on{background:#ffd071;border-color:#ffe5ad}
+
+  #inventoryBtn{
+    width:57px;
+    min-width:57px;
+    border:1px solid var(--line);
+    border-radius:11px;
+    background:var(--panel);
+    color:white;
+    font-weight:900;
+    font-size:16px;
+    pointer-events:auto;
+    line-height:1;
+  }
+  #inventoryBtn span{
+    display:block;
+    font-size:10px;
+    margin-top:4px;
+    color:#d5e8f1;
+  }
+
+  /* Detailinformationen sind nicht permanent sichtbar. */
+  #plasmidBox{
+    position:absolute;
+    right:10px;
+    top:71px;
+    z-index:38;
+    width:310px;
+    max-height:600px;
+    overflow:auto;
+    display:none;
+    padding:10px;
+    font-size:11px;
+    pointer-events:auto;
+    background:var(--panelStrong);
+  }
+  #plasmidBox.open{display:block}
+
+  #attributeGrid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:5px;
+    margin:8px 0;
+  }
+  .attrMini{
+    padding:5px 7px;
+    border-radius:7px;
+    background:rgba(255,255,255,.055);
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+  }
+
+  .small{font-size:10px;color:var(--muted)}
+  .plist{display:grid;gap:6px;margin-top:7px}
+  .pitem{
+    border-radius:8px;
+    padding:6px;
+    background:rgba(255,255,255,.055);
+    border:1px solid rgba(255,255,255,.08)
+  }
+  .ptitle{font-weight:800;display:flex;justify-content:space-between;gap:8px}
+  .tag{
+    display:inline-block;
+    padding:2px 7px;
+    border-radius:999px;
+    font-size:9px;
+    font-weight:800;
+    color:#11202c
+  }
+  .common{background:var(--common)}
+  .uncommon{background:var(--uncommon)}
+  .rare{background:var(--rare)}
+
+  #message{
+    position:absolute;
+    left:50%;
+    top:72px;
+    transform:translateX(-50%);
+    z-index:60;
+    max-width:650px;
+    padding:8px 13px;
+    border-radius:10px;
+    background:rgba(0,0,0,.73);
+    border:1px solid rgba(255,255,255,.15);
+    font-size:12px;
+    text-align:center;
+    opacity:0;
+    transition:opacity .2s;
+    pointer-events:none;
+  }
+
+  #controls{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:30
+  }
+  #joyZone{
+    position:absolute;
+    left:0;
+    bottom:0;
+    width:53%;
+    height:58%;
+    pointer-events:auto
+  }
+  #joyBase{
+    position:absolute;
+    width:118px;
+    height:118px;
+    border-radius:50%;
+    background:rgba(255,255,255,.07);
+    border:2px solid rgba(255,255,255,.20);
+    display:none;
+    transform:translate(-50%,-50%);
+  }
+  #joyKnob{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:50px;
+    height:50px;
+    border-radius:50%;
+    background:rgba(255,255,255,.26);
+    border:2px solid rgba(255,255,255,.52);
+    transform:translate(-50%,-50%)
+  }
+  .action{
+    position:absolute;
+    right:18px;
+    width:74px;
+    height:74px;
+    border-radius:50%;
+    pointer-events:auto;
+    color:white;
+    border:2px solid rgba(255,255,255,.40);
+    background:rgba(255,255,255,.13);
+    font:800 19px/1 system-ui;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 6px 18px rgba(0,0,0,.20)
+  }
+  .action span{
+    font-size:8px;
+    font-weight:700;
+    margin-top:4px;
+    text-align:center;
+    padding:0 4px;
+    line-height:1.05;
+  }
+  #btnA{bottom:174px}
+  #btnB{bottom:94px}
+  #btnC{bottom:14px}
+  .action:active{transform:scale(.97);background:rgba(255,255,255,.23)}
+
+  #dialogWrap,#animWrap{
+    position:absolute;
+    inset:0;
+    display:none;
+    place-items:center;
+    z-index:70;
+    background:rgba(0,0,0,.50);
+    padding:16px
+  }
+  #dialog{
+    width:calc(100% - 40px);
+    max-width:920px;
+    max-height:calc(100% - 40px);
+    overflow:auto;
+    padding:16px;
+    border-radius:16px;
+    background:rgba(8,18,29,.98);
+    border:1px solid rgba(255,255,255,.2);
+    box-shadow:0 20px 60px rgba(0,0,0,.45)
+  }
+  #dialog h2{font-size:20px;margin:0 0 9px}
+  #dialog p{font-size:13px;color:#d7e6ee;margin:6px 0}
+  .compareGrid{display:grid;grid-template-columns:1.05fr .95fr;gap:12px;align-items:start;margin-top:9px}
+  .card{padding:10px;border-radius:12px;background:#102330;border:1px solid rgba(255,255,255,.14)}
+  .card h3{margin:0 0 7px;font-size:16px}
+  .geneList{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0}
+  .gene{padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);font-size:11px}
+  .statsPreview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}
+  .statBox{padding:7px;border-radius:9px;background:rgba(255,255,255,.05);font-size:11px}
+  .deltaUp{color:#82f08d;font-weight:800}
+  .deltaDown{color:#ff8a93;font-weight:800}
+  .slotList{display:grid;gap:7px;margin-top:8px}
+  .slotCard{border:1px solid rgba(255,255,255,.11);border-radius:10px;padding:8px;background:rgba(255,255,255,.05)}
+  .slotTop{display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .replaceBtn,.ghostBtn,.wideBtn{
+    border:0;
+    border-radius:9px;
+    padding:9px 11px;
+    background:#25506b;
+    color:white;
+    font-weight:800
+  }
+  .replaceBtn{padding:7px 9px;font-size:11px}
+  .ghostBtn{background:#334655}
+  .dialogButtons{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+  #animCard{
+    width:920px;
+    max-width:calc(100% - 24px);
+    max-height:calc(100% - 20px);
+    overflow:auto;
+    padding:18px;
+    border-radius:18px;
+    background:rgba(8,18,29,.98);
+    border:1px solid rgba(255,255,255,.2);
+    box-shadow:0 20px 60px rgba(0,0,0,.45)
+  }
+  .animHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+  #animTitle{font-size:22px;font-weight:800}
+  #animRarity{font-size:12px;white-space:nowrap}
+  #conjCanvas{width:100%;height:auto;aspect-ratio:1280/500;background:#0b1d29;border-radius:12px;display:block}
+  #animCaption{margin:4px 0 10px;color:#e5f0f6;font-size:16px;line-height:1.4;min-height:45px;text-align:center;display:flex;align-items:center;justify-content:center}
+  #conjSteps{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:12px}
+  .conjStep{padding:8px 3px;border-radius:8px;background:#142734;color:#90a8b8;font-size:12px;text-align:center}
+  .conjStep[aria-current="step"]{background:#254b55;color:#ecfff6}
+  #conjLegend{display:flex;justify-content:center;gap:28px;align-items:center;color:#bbced9;font-size:12px;margin-bottom:13px}
+  #conjLegend span{display:inline-flex;align-items:center;gap:7px}
+  .conjSwatch{width:22px;height:4px;border-radius:3px;display:inline-block}
+  #conjChromosomeSwatch{background:#315c72;outline:1px solid #81a0ac}
+  #conjProgress{height:4px;background:#1b303d;border-radius:4px;overflow:hidden;margin:0 0 12px}
+  #conjProgressFill{height:100%;width:0;background:var(--common);border-radius:4px}
+  #animCard .dialogButtons{justify-content:space-between;margin-top:0}
+  #animCard button{min-height:42px;cursor:pointer;font-size:13px}
+  #animCard button:focus-visible{outline:3px solid #83e7da;outline-offset:3px}
+  #conjPause{min-width:108px}
+
+
+  #start{
+    position:absolute;
+    inset:0;
+    z-index:100;
+    display:grid;
+    place-items:center;
+    background:radial-gradient(circle at center,#173749 0,#07131b 70%);
+    padding:18px
+  }
+  #startCard{
+    width:760px;
+    max-width:calc(100% - 32px);
+    max-height:calc(100% - 32px);
+    overflow:auto;
+    padding:20px;
+    border-radius:18px;
+    background:rgba(5,14,22,.92);
+    border:1px solid rgba(255,255,255,.17)
+  }
+  #start h1{margin:0 0 7px;font-size:25px}
+  #start p{color:#d0dfe7;line-height:1.35;font-size:13px}
+  #start button{width:100%;padding:12px;border-radius:10px;border:0;background:#dfeaf0;color:#10212c;font-size:15px;font-weight:800}
+  .kbd{display:inline-block;background:rgba(255,255,255,.12);padding:2px 6px;border-radius:6px;font-weight:800}
+
+  .missionSteps{padding-left:24px;margin:12px 0;color:#e8f3fa;font-size:15px;line-height:1.45}
+  .missionSteps li{margin:8px 0}
+  #startCard h2{font-size:19px;margin:14px 0 8px;color:#83e7da}
+  #startCard,#deathCard{touch-action:pan-y}
+  #deathWrap{position:absolute;inset:0;z-index:115;display:none;place-items:center;background:rgba(3,10,16,.84);padding:24px}
+  #deathCard{width:580px;max-width:100%;max-height:100%;overflow:auto;padding:26px;border-radius:18px;background:#0b1b29;border:2px solid #ff7185;box-shadow:0 20px 60px #0008}
+  #deathCard h2{margin:0 0 12px;font-size:25px}
+  #deathCard p{font-size:16px;line-height:1.5;color:#d7e6ee}
+  #respawnBtn{width:100%;margin-top:10px;padding:14px;font-size:16px}
+  #startBtn:focus-visible,#respawnBtn:focus-visible{outline:3px solid #83e7da;outline-offset:4px}
+
+  #victoryWrap{
+    position:absolute !important;
+    inset:0;
+  }
+
+  #orientation{
+    position:fixed;
+    inset:0;
+    z-index:120;
+    display:none;
+    place-items:center;
+    background:#07131b;
+    text-align:center;
+    padding:30px;
+    font-weight:700
+  }
+  @media (orientation:portrait){
+    #orientation{display:grid}
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+<canvas id="game"></canvas>
+
+<div id="topRow">
+  <div id="hud" class="box">
+    <div class="miniStat">
+      <div class="miniHead"><span>Leben</span><strong id="lifeText">100</strong></div>
+      <div class="miniBar"><div id="lifeFill" class="fill"></div></div>
+    </div>
+    <div class="miniStat">
+      <div class="miniHead"><span>Energie</span><strong id="energyText">100</strong></div>
+      <div class="miniBar"><div id="energyFill" class="fill"></div></div>
+    </div>
+    <div class="miniStat">
+      <div class="miniHead"><span>Zellwand</span><strong id="wallText">60</strong></div>
+      <div class="miniBar"><div id="wallFill" class="fill"></div></div>
+    </div>
+  </div>
+
+  <div id="missionBox" class="box">
+    <strong id="missionTitle">Mission</strong>
+    <div id="missionText">Finde drei Antibiotika-Resistenzen.</div>
+    <div id="missionProgress" class="small"></div>
+  </div>
+
+  <div id="resistanceStrip" class="box">
+    <div class="resTitle">Schutz</div>
+    <div class="resRow">
+      <span id="resA" class="resChip">A</span>
+      <span id="resB" class="resChip">B</span>
+      <span id="resC" class="resChip">C</span>
+      <span id="resAcid" class="resChip">pH</span>
+    </div>
+  </div>
+
+  <button id="inventoryBtn" aria-label="Plasmide und Eigenschaften">🧬<span id="slotText">0/4</span></button>
+</div>
+
+<div id="plasmidBox" class="box">
+  <div class="ptitle"><span>Eigenschaften & Plasmide</span><span id="distanceText">0 µm</span></div>
+  <div id="attributeGrid">
+    <div class="attrMini"><span>Zellwand</span><strong id="wallModText">+0%</strong></div>
+    <div class="attrMini"><span>Bewegung</span><strong id="moveText">+0%</strong></div>
+    <div class="attrMini"><span>Schleimhülle</span><strong id="capsuleText">+0%</strong></div>
+    <div class="attrMini"><span>Stoffwechsel</span><strong id="metabolismText">+0%</strong></div>
+    <div class="attrMini"><span>Gift</span><strong id="toxinText">+0%</strong></div>
+    <div class="attrMini"><span>Plasmidlast</span><strong id="burdenText">0%</strong></div>
+  </div>
+  <div class="small">Plasmide: grau = Common, blau = Uncommon, gelb = Rare</div>
+  <div id="plist" class="plist"></div>
+</div>
+
+<div id="message"></div>
+<div id="victoryWrap" style="display:none;place-items:center;z-index:110;background:rgba(3,10,16,.9);padding:20px">
+  <div class="box" style="width:min(620px,94vw);padding:24px;text-align:center">
+    <h1 style="margin-top:0">Mission erfüllt</h1>
+    <p id="victoryText" style="line-height:1.5"></p>
+    <div id="fitnessScore" style="font-size:22px;font-weight:800;margin:16px 0"></div>
+    <button id="restartBtn" class="wideBtn" style="width:100%">Neu starten</button>
+  </div>
+</div>
+
+<div id="controls">
+  <div id="joyZone"><div id="joyBase"><div id="joyKnob"></div></div></div>
+  <button id="btnA" class="action">A<span>Konjugation<br>-18 Energie</span></button>
+  <button id="btnB" class="action">B<span>Bakteriocin</span></button>
+  <button id="btnC" class="action">C<span>Zellteilung<br>-80 / 10 Reserve</span></button>
+</div>
+
+<div id="dialogWrap">
+  <div id="dialog"><div id="dialogContent"></div></div>
+</div>
+
+<div id="animWrap" role="dialog" aria-modal="true" aria-labelledby="animTitle" aria-describedby="animCaption">
+  <div id="animCard">
+    <div class="animHeading"><div id="animTitle">Konjugation</div><span id="animRarity" class="tag"></span></div>
+    <canvas id="conjCanvas" width="1600" height="625" role="img" aria-label="Eine Spenderzelle überträgt einen einzelnen Plasmidstrang auf deine Bakterienzelle. Anschließend besitzen beide Zellen ein vollständiges Plasmid."></canvas>
+    <div id="animCaption" aria-live="polite"></div>
+    <div id="conjSteps" aria-label="Ablauf der Konjugation">
+      <span class="conjStep">1 · Kontakt</span><span class="conjStep">2 · Annäherung</span><span class="conjStep">3 · Übertragung</span><span class="conjStep">4 · Ergänzung</span><span class="conjStep">5 · Trennung</span>
+    </div>
+    <div id="conjLegend"><span><i class="conjSwatch" id="conjChromosomeSwatch" aria-hidden="true"></i>Bakterienchromosom</span><span><i class="conjSwatch" id="conjPlasmidSwatch" aria-hidden="true"></i><span id="conjPlasmidLegend">Plasmid</span></span></div>
+    <div id="conjProgress" role="progressbar" aria-label="Konjugation" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="conjProgressFill"></div></div>
+    <div class="dialogButtons"><button id="conjPause" class="ghostBtn" type="button" aria-label="Animation pausieren">Pause</button><button id="skipAnim" class="ghostBtn" type="button">Animation überspringen</button></div>
+  </div>
+</div>
+
+<div id="deathWrap" role="dialog" aria-modal="true" aria-labelledby="deathTitle" aria-describedby="deathReason deathPenalty">
+  <div id="deathCard">
+    <h2 id="deathTitle">Deine Zelle ist gestorben</h2>
+    <p id="deathReason"></p>
+    <p><strong>Das Spiel ist pausiert.</strong> Erst nach deiner Bestätigung geht es am Ursprung weiter.</p>
+    <p id="deathPenalty"></p>
+    <button id="respawnBtn" class="wideBtn">Am Ursprung neu starten</button>
+  </div>
+</div>
+
+<div id="start" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+  <div id="startCard">
+    <h1 id="startTitle">Konjugation – Ursuppe</h1>
+    <h2>Dein Ziel: Gründe eine resistente Bakterienpopulation.</h2>
+    <ol class="missionSteps">
+      <li><strong>Sammle drei Antibiotika-Resistenzen.</strong> Schwimme zu Bakterien in den farbigen Gefahrenzonen. Übernimm mit <strong>A (Konjugation)</strong> passende Plasmide und behalte den Schutz gegen alle drei Antibiotika.</li>
+      <li><strong>Erreiche das markierte Selektionsgebiet.</strong> Es erscheint, sobald du alle drei Resistenzen hast. Überlebe dort die drei Antibiotika-Phasen und die anschließende Säurephase. Säureschutz ist hilfreich.</li>
+      <li><strong>Teile dich zum Abschluss.</strong> Sammle mindestens <strong>90 Energie</strong> und drücke <strong>C</strong>. Nach der Zellteilung hast du gewonnen!</li>
+    </ol>
+    <p><strong>Überleben:</strong> Gelbe Nahrung liefert Energie, blaue Bausteine reparieren die Zellwand. Ohne passenden Schutz sind Gefahrenzonen tödlich – übernimm dort schnell ein Resistenz-Plasmid. Du hast Platz für vier Plasmide.</p>
+    <p><strong>Beim Tod:</strong> Das Spiel pausiert. Beim bestätigten Neustart am Ursprung verlierst du zwei zufällige Plasmide (oder alle, falls du weniger hast).</p>
+    <p><strong>Wegweiser:</strong> Farbige Marken A, B, C und pH zeigen zum nächsten passenden Gefahrengebiet. Der große Marker „ZIEL“ führt zum Selektionsfeld.</p>
+    <p>Wähle dein Lernniveau:</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0">
+      <button id="simpleMode" style="padding:16px;border-radius:12px;border:2px solid #5bc0ff;background:#183549;color:white;font-weight:800;font-size:16px">Simple Version<br><span style="font-size:12px;font-weight:500">Wirkungen statt Fachbegriffe</span></button>
+      <button id="scienceMode" style="padding:16px;border-radius:12px;border:2px solid rgba(255,255,255,.22);background:#142532;color:white;font-weight:800;font-size:16px">Wissenschaftliche Version<br><span style="font-size:12px;font-weight:500">mit biologischen Fachbegriffen</span></button>
+    </div>
+    <p id="modeInfo"><strong>Simple:</strong> z. B. „Resistenz Antibiotikum A“, „Zellwand +“ oder „Bewegung ++“.</p>
+    <p><strong>Touch:</strong> links bewegen; rechts A = Konjugation, B = Bakteriocin, C = Zellteilung.<br><strong>Tastatur:</strong> Pfeiltasten/WASD = bewegen · E = Konjugation · Leertaste = Bakteriocin · Q = Zellteilung.</p>
+    <button id="startBtn">Spiel starten</button>
+  </div>
+</div>
+</div>
+<div id="orientation">Bitte das Tablet für den Prototypen ins Querformat drehen.</div>
+
+<script>
+/* Educational schematic of F-plasmid conjugation. All animation state is a pure function of time.
+   Mechanism: Couturier et al., Nature Communications 14, 294 (2023).
+   https://doi.org/10.1038/s41467-023-35978-3 */
+(function (global) {
+  'use strict';
+  function create(config = {}) {
+  const tint = (hex, amount) => {
+    const n = parseInt(hex.slice(1), 16);
+    return '#' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => Math.round(v + (255 - v) * amount).toString(16).padStart(2, '0')).join('');
+  };
+  const plasmidColor = config.plasmidColor || '#b8bec8';
+  const recipientColor = config.recipientColor || '#46e0d2';
+  const DURATION = 36;
+  const TAU = Math.PI * 2;
+  const C = {
+    background: '#0b1d29', ink: '#edf6f8', muted: '#bdcfd9', line: '#536777',
+    greenEdge: '#6c9548', greenLight: '#e4f2bc', green: '#c5e49b', greenDark: '#abc97d',
+    chromosome: '#315c72', chromosomeHighlight: '#7596a1', old: plasmidColor, fresh: tint(plasmidColor, .28),
+    pilus: '#6c8b62', channel: '#e2efc9', pair: plasmidColor
+  };
+  const PHASES = [
+    {start: 0, seek: 3, title: 'Kontakt', text: 'Der Pilus der Spenderzelle stellt den Kontakt her.'},
+    {start: 6, seek: 9, title: 'Annäherung', text: 'Der Pilus verkürzt sich und bringt die Zellen zusammen.'},
+    {start: 12, seek: 19, title: 'Übertragung', text: 'Ein Plasmidstrang wird übertragen und in der Spenderzelle ersetzt.'},
+    {start: 25.2, seek: 28, title: 'Ergänzung', text: 'In der Empfängerzelle wird der fehlende DNA-Strang ergänzt.'},
+    {start: 30.6, seek: 34.5, title: 'Trennung', text: 'Beide Zellen besitzen jetzt ein vollständiges Plasmid.'}
+  ];
+  const clamp = (n, a = 0, b = 1) => Math.min(b, Math.max(a, n));
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const smooth = u => {u = clamp(u); return u * u * u * (u * (u * 6 - 15) + 10);};
+  const between = (t, a, b) => clamp((t - a) / (b - a));
+  const fade = (t, a, b, c, d) => smooth(between(t, a, b)) * (1 - smooth(between(t, c, d)));
+
+  function state(time) {
+    const t = clamp(time, 0, DURATION);
+    const approach = smooth(between(t, 6, 10.8));
+    const separate = smooth(between(t, 31.2, 34.8));
+    const together = approach * (1 - separate);
+    const commonBob = Math.sin(t * 0.65) * 1.1;
+    const donor = {x: lerp(290, 459, together), y: 250 + commonBob + (1 - together) * Math.sin(t * 0.73) * 1.4};
+    const recipient = {x: lerp(990, 821, together), y: 250 + commonBob + (1 - together) * Math.sin(t * 0.73 + 1.5) * 1.4};
+    const ringShift = 12 * smooth(between(t, 10.6, 12.5)) * (1 - separate);
+    const dp = {x: donor.x + 83 + ringShift, y: donor.y};
+    const rp = {x: recipient.x - 83, y: recipient.y};
+    const transfer = between(t, 13.6, 24.5);
+    const received = smooth(between(t, 14.3, 25.2));
+    const recipientCopy = smooth(between(t, 25.35, 30.25));
+    let phase = 0;
+    for (let i = 1; i < PHASES.length; i++) if (t >= PHASES[i].start) phase = i;
+    return {t, donor, recipient, dp, rp, together, transfer, received, recipientCopy, phase};
+  }
+
+  function seedRandom(seed) {
+    return () => {seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296;};
+  }
+  function makeRibosomes(seed) {
+    const rand = seedRandom(seed), points = [];
+    while (points.length < 48) {
+      const x = (rand() - .5) * 310, y = (rand() - .5) * 130;
+      const qx = Math.max(0, Math.abs(x) - 87);
+      if (qx * qx + y * y < 61 * 61) points.push([x, y, 1.6 + rand() * 1.4, rand() * TAU]);
+    }
+    return points;
+  }
+  const ribosomes = [makeRibosomes(214), makeRibosomes(831)];
+
+  function capsule(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  }
+  // A true stadium outline preserves the rounded poles without a rectangular-looking cap.
+  function cellOutline(ctx, inset = 0) {
+    const r = 83 - inset, half = 175 - inset, cy = 0;
+    ctx.beginPath();
+    ctx.moveTo(-half + r, cy - r); ctx.lineTo(half - r, cy - r);
+    ctx.arc(half - r, cy, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(-half + r, cy + r); ctx.arc(-half + r, cy, r, Math.PI / 2, Math.PI * 1.5);
+    ctx.closePath();
+  }
+  function chromosome(ctx, t, mirror) {
+    ctx.save(); ctx.translate(mirror ? 65 : -65, 0);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const path = () => {
+      ctx.beginPath();
+      for (let i = 0; i <= 390; i++) {
+        const a = i / 390 * TAU;
+        const x = 51 * Math.cos(3 * a + .42) + 15 * Math.sin(7 * a + .2);
+        const y = 28 * Math.sin(4 * a + .55) + 10 * Math.cos(9 * a);
+        const dx = 1.1 * Math.sin(a * 4 + t * .36), dy = .9 * Math.cos(a * 3 - t * .3);
+        if (!i) ctx.moveTo(x + dx, y + dy); else ctx.lineTo(x + dx, y + dy);
+      }
+      ctx.closePath();
+    };
+    path(); ctx.strokeStyle = '#d6e6bd'; ctx.lineWidth = 7; ctx.stroke();
+    path(); ctx.strokeStyle = C.chromosome; ctx.lineWidth = 3.4; ctx.stroke();
+    ctx.restore();
+  }
+  function cell(ctx, pose, index, t) {
+    ctx.save(); ctx.translate(pose.x, pose.y);
+    cellOutline(ctx);
+    ctx.shadowColor = '#536a3924'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 7;
+    const g = ctx.createLinearGradient(0, -83, 0, 83);
+    g.addColorStop(0, index === 1 ? tint(recipientColor, .42) : C.greenLight);
+    g.addColorStop(.38, index === 1 ? recipientColor : C.green);
+    g.addColorStop(1, index === 1 ? '#299b95' : C.greenDark);
+    ctx.fillStyle = g; ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = index === 1 ? '#267c79' : C.greenEdge; ctx.lineWidth = 2.8; ctx.stroke();
+    cellOutline(ctx, 6); ctx.strokeStyle = '#eff8d7b0'; ctx.lineWidth = 1.8; ctx.stroke();
+    for (const [x, y, r, phase] of ribosomes[index]) {
+      ctx.beginPath(); ctx.arc(x + Math.sin(t * .22 + phase) * .6, y + Math.cos(t * .26 + phase) * .6, r, 0, TAU);
+      ctx.fillStyle = '#6e965254'; ctx.fill();
+    }
+    chromosome(ctx, t + index * 5, index === 1);
+    ctx.restore();
+  }
+  function text(ctx, value, x, y, size = 22, color = C.ink, align = 'center', weight = 400) {
+    ctx.font = `${weight} ${size}px "DejaVu Sans", Arial, sans-serif`;
+    ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillText(value, x, y);
+  }
+  function line(ctx, points, color, width, alpha = 1) {
+    if (points.length < 2 || alpha <= 0) return;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); ctx.restore();
+  }
+  function arc(ctx, cx, cy, radius, from, to, color, width = 3.5, alpha = 1) {
+    if (to - from < .0001 || alpha < .001) return;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.beginPath(); ctx.arc(cx, cy, radius, from, to);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#142e39b0'; ctx.lineWidth = width + 3; ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke(); ctx.restore();
+  }
+  function pairs(ctx, ring, progress, start, radiusOuter = 37, alpha = 1) {
+    if (progress <= 0) return;
+    ctx.save(); ctx.globalAlpha = alpha * .7; ctx.strokeStyle = C.pair; ctx.lineWidth = 1.45;
+    for (let i = 0; i < 18; i++) {
+      const fraction = (i + .5) / 18;
+      if (fraction > progress) continue;
+      const a = start + fraction * TAU;
+      ctx.beginPath(); ctx.moveTo(ring.x + Math.cos(a) * (radiusOuter - 6), ring.y + Math.sin(a) * (radiusOuter - 6));
+      ctx.lineTo(ring.x + Math.cos(a) * radiusOuter, ring.y + Math.sin(a) * radiusOuter); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function pilus(ctx, s) {
+    const extent = smooth(between(s.t, 1.4, 5.5));
+    const opacity = 1 - smooth(between(s.t, 10.65, 11.5));
+    if (extent <= 0 || opacity <= 0) return;
+    const ax = s.donor.x + 174, bx = s.recipient.x - 174;
+    const points = [];
+    for (let i = 0; i <= 90; i++) {
+      const u = i / 90 * extent;
+      const bend = Math.sin(u * Math.PI) * (18 * (1 - s.together) + 1.5);
+      points.push({x: lerp(ax, bx, u), y: lerp(s.donor.y, s.recipient.y, u) - bend});
+    }
+    line(ctx, points, '#819771', 9, opacity);
+    line(ctx, points.map(p => ({x: p.x, y: p.y - 1.8})), '#c7d5b7', 2.6, opacity);
+    // Small transverse marks give the pilus a filament structure.
+    ctx.save(); ctx.globalAlpha = opacity * .5; ctx.strokeStyle = '#506a48'; ctx.lineWidth = 1;
+    for (let i = 3; i < points.length - 1; i += 3) {
+      const p = points[i], n = points[i + 1], a = Math.atan2(n.y - p.y, n.x - p.x) + Math.PI / 2;
+      ctx.beginPath(); ctx.moveTo(p.x - Math.cos(a) * 3.4, p.y - Math.sin(a) * 3.4);
+      ctx.lineTo(p.x + Math.cos(a) * 3.4, p.y + Math.sin(a) * 3.4); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function channel(ctx, s) {
+    const opacity = fade(s.t, 10.65, 11.7, 30.6, 31.15);
+    if (opacity <= 0) return;
+    const ax = s.donor.x + 167, bx = s.recipient.x - 167, cy = (s.donor.y + s.recipient.y) / 2;
+    ctx.save(); ctx.globalAlpha = opacity;
+    capsule(ctx, ax, cy - 11, bx - ax, 22, 8); ctx.fillStyle = C.channel; ctx.fill();
+    ctx.lineWidth = 2.6; ctx.strokeStyle = C.greenEdge;
+    ctx.beginPath(); ctx.moveTo(ax, cy - 11); ctx.lineTo(bx, cy - 11); ctx.moveTo(ax, cy + 11); ctx.lineTo(bx, cy + 11); ctx.stroke();
+    ctx.restore();
+  }
+  function plasmids(ctx, s) {
+    const {dp, rp, transfer, received, recipientCopy, t} = s;
+    const inner = 31, outer = 37;
+    // One original strand stays in the donor. Its replacement partner grows as the other strand leaves.
+    arc(ctx, dp.x, dp.y, inner, 0, TAU, C.old);
+    const nick = Math.max(0, Math.sin(between(t, 12.2, 13.6) * Math.PI)) * .035;
+    arc(ctx, dp.x, dp.y, outer, nick, TAU * (1 - transfer) - nick, C.old);
+    arc(ctx, dp.x, dp.y, outer, TAU * (1 - transfer), TAU, C.fresh);
+    pairs(ctx, dp, 1, 0);
+    if (received > 0) {
+      arc(ctx, rp.x, rp.y, outer, Math.PI, Math.PI + received * TAU, C.old);
+      arc(ctx, rp.x, rp.y, inner, Math.PI, Math.PI + recipientCopy * TAU, C.fresh);
+      pairs(ctx, rp, recipientCopy, Math.PI);
+    }
+    // A continuous single DNA strand traverses the channel; the ring itself never travels across.
+    const head = smooth(between(t, 12.65, 14.3));
+    const tail = smooth(between(t, 24.45, 25.2));
+    if (head > tail + .00001) {
+      const a = {x: dp.x + outer, y: dp.y}, b = {x: rp.x - outer, y: rp.y};
+      const pts = [];
+      for (let i = 0; i <= 180; i++) {
+        const u = lerp(tail, head, i / 180);
+        // The strand is kept inside the narrow transfer channel at its centre.
+        const amplitude = 3.5 * Math.sin(u * Math.PI);
+        pts.push({x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) + amplitude * Math.sin(u * TAU * 2 - (t - 12.65) * 3)});
+      }
+      line(ctx, pts, '#142e39b0', 6.1);
+      line(ctx, pts, C.old, 3.3);
+      // Lighter segments move only from donor to recipient, indicating the direction of transfer.
+      for (let k = 0; k < 3; k++) {
+        const u = (((t - 12.65) * .26 + k / 3) % 1 + 1) % 1;
+        if (u < tail + .02 || u > head - .02) continue;
+        const idx = Math.round((u - tail) / (head - tail) * 180);
+        line(ctx, pts.slice(Math.max(0, idx - 3), Math.min(pts.length, idx + 4)), tint(plasmidColor, .65), 2.2);
+      }
+    }
+  }
+  function annotations(ctx, s) {
+    text(ctx, config.donorLabel || 'Spenderzelle', s.donor.x, 126, 24, C.ink, 'center', 500);
+    text(ctx, config.recipientLabel || 'Deine Zelle', s.recipient.x, 126, 24, C.ink, 'center', 500);
+    let alpha = fade(s.t, 2.7, 3.6, 10, 11);
+    if (alpha > .001) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      text(ctx, 'Pilus', 640, 170, 20, C.muted);
+      line(ctx, [{x:640, y:188}, {x:640, y:218}], C.muted, 1.2);
+      ctx.restore();
+    }
+    alpha = fade(s.t, 11, 11.8, 30.4, 31.1);
+    if (alpha > .001) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      text(ctx, 'Übertragungskanal', 640, 84, 19, C.muted);
+      line(ctx, [{x:640, y:104}, {x:640, y:224}], '#a6b19e', 1.2);
+      ctx.restore();
+    }
+    alpha = fade(s.t, 14.4, 15.2, 24.1, 25);
+    if (alpha > .001) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      line(ctx, [{x:640, y:273}, {x:640, y:353}], '#a6b19e', 1.2);
+      text(ctx, 'DNA-Einzelstrang', 640, 377, 20, C.muted);
+      ctx.restore();
+    }
+    alpha = smooth(between(s.t, 32.5, 34.5));
+    if (alpha > .001) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      for (const ring of [s.dp, s.rp]) {
+        line(ctx, [{x:ring.x, y:ring.y + 45}, {x:ring.x, y:359}], '#a6b19e', 1.2);
+        text(ctx, 'Plasmid', ring.x, 384, 20, C.muted);
+      }
+      ctx.restore();
+    }
+  }
+  function renderScene(ctx, time, options = {}) {
+    const s = state(time);
+    const w = options.width || 1280, h = options.height || 500;
+    ctx.save();
+    if (options.background !== false) {ctx.fillStyle = C.background; ctx.fillRect(0, 0, w, h);}
+    const scale = Math.min(w / 1280, h / 500);
+    ctx.translate((w - 1280 * scale) / 2, (h - 500 * scale) / 2); ctx.scale(scale, scale);
+    pilus(ctx, s);
+    cell(ctx, s.donor, 0, s.t); cell(ctx, s.recipient, 1, s.t);
+    channel(ctx, s); plasmids(ctx, s);
+    if (options.labels !== false) annotations(ctx, s);
+    ctx.restore();
+    return s;
+  }
+  return {DURATION, PHASES, C, state, renderScene};
+  }
+  global.GameConjugation = {create};
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+(() => {
+'use strict';
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const BASE_W=1024, BASE_H=768;
+const stage=document.getElementById('stage');
+let W=BASE_W,H=BASE_H,DPR=Math.min(devicePixelRatio||1,2);
+let stageScale=1;
+let worldNeedsRedraw=true;
+
+function resize(){
+  DPR=Math.min(devicePixelRatio||1,2);
+
+  // Eine einzige Skalierung für X und Y verhindert jede Verzerrung.
+  stageScale=Math.min(innerWidth/BASE_W, innerHeight/BASE_H);
+  const drawW=BASE_W*stageScale;
+  const drawH=BASE_H*stageScale;
+
+  stage.style.left=((innerWidth-drawW)/2)+'px';
+  stage.style.top=((innerHeight-drawH)/2)+'px';
+  stage.style.transform=`scale(${stageScale})`;
+
+  canvas.width=Math.round(BASE_W*DPR);
+  canvas.height=Math.round(BASE_H*DPR);
+  canvas.style.width=BASE_W+'px';
+  canvas.style.height=BASE_H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+
+  W=BASE_W;
+  H=BASE_H;
+  worldNeedsRedraw=true;
+}
+
+function screenToStage(clientX,clientY){
+  const rect=stage.getBoundingClientRect();
+  return {
+    x:(clientX-rect.left)/stageScale,
+    y:(clientY-rect.top)/stageScale
+  };
+}
+
+addEventListener('resize',resize,{passive:true});
+resize();
+
+const rand=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+
+const RARITY_INFO = {
+  common:{label:'Common', color:'#b8bec8', className:'common'},
+  uncommon:{label:'Uncommon', color:'#4ea1ff', className:'uncommon'},
+  rare:{label:'Rare', color:'#ffd554', className:'rare'}
+};
+
+const geneEffects = {
+  beta:{scientific:'β-Lactamase',simple:'Resistenz Antibiotikum A',type:'res',res:'beta'},
+  tet:{scientific:'Tetracyclin-Effluxpumpe',simple:'Resistenz Antibiotikum B',type:'res',res:'tet'},
+  amg:{scientific:'Aminoglykosid-Resistenz',simple:'Resistenz Antibiotikum C',type:'res',res:'amg'},
+  acid:{scientific:'Säuretoleranz',simple:'Säureschutz',type:'res',res:'acid'},
+
+  wall_mm:{scientific:'Zellwandsynthese --',simple:'Zellwand --',type:'mod',attr:'wallStrength',pct:-20},
+  wall_m:{scientific:'Zellwandsynthese -',simple:'Zellwand -',type:'mod',attr:'wallStrength',pct:-10},
+  wall_p:{scientific:'Zellwandsynthese +',simple:'Zellwand +',type:'mod',attr:'wallStrength',pct:10},
+  wall_pp:{scientific:'Zellwandsynthese ++',simple:'Zellwand ++',type:'mod',attr:'wallStrength',pct:20},
+
+  move_mm:{scientific:'Geißelbewegung --',simple:'Bewegung --',type:'mod',attr:'move',pct:-20},
+  move_m:{scientific:'Geißelbewegung -',simple:'Bewegung -',type:'mod',attr:'move',pct:-10},
+  move_p:{scientific:'Geißelbewegung +',simple:'Bewegung +',type:'mod',attr:'move',pct:10},
+  move_pp:{scientific:'Geißelbewegung ++',simple:'Bewegung ++',type:'mod',attr:'move',pct:20},
+
+  capsule_mm:{scientific:'Kapselbildung --',simple:'Schleimhülle --',type:'mod',attr:'capsule',pct:-20},
+  capsule_m:{scientific:'Kapselbildung -',simple:'Schleimhülle -',type:'mod',attr:'capsule',pct:-10},
+  capsule_p:{scientific:'Kapselbildung +',simple:'Schleimhülle +',type:'mod',attr:'capsule',pct:10},
+  capsule_pp:{scientific:'Kapselbildung ++',simple:'Schleimhülle ++',type:'mod',attr:'capsule',pct:20},
+
+  metabolism_mm:{scientific:'Stoffwechseleffizienz --',simple:'Stoffwechsel --',type:'mod',attr:'metabolism',pct:-20},
+  metabolism_m:{scientific:'Stoffwechseleffizienz -',simple:'Stoffwechsel -',type:'mod',attr:'metabolism',pct:-10},
+  metabolism_p:{scientific:'Stoffwechseleffizienz +',simple:'Stoffwechsel +',type:'mod',attr:'metabolism',pct:10},
+  metabolism_pp:{scientific:'Stoffwechseleffizienz ++',simple:'Stoffwechsel ++',type:'mod',attr:'metabolism',pct:20},
+
+  toxin_mm:{scientific:'Bakteriocin-Produktion --',simple:'Gift --',type:'mod',attr:'toxin',pct:-20},
+  toxin_m:{scientific:'Bakteriocin-Produktion -',simple:'Gift -',type:'mod',attr:'toxin',pct:-10},
+  toxin_p:{scientific:'Bakteriocin-Produktion +',simple:'Gift +',type:'mod',attr:'toxin',pct:10},
+  toxin_pp:{scientific:'Bakteriocin-Produktion ++',simple:'Gift ++',type:'mod',attr:'toxin',pct:20}
+};
+
+const GENERAL_PLASMIDS = [
+  {id:'g1',name:'pMot-1',rarity:'common',genes:['move_p'],burden:4,desc:'Verändert die Fortbewegung.'},
+  {id:'g2',name:'pWall-1',rarity:'common',genes:['wall_p'],burden:4,desc:'Verändert die Zellwand.'},
+  {id:'g3',name:'pMet-1',rarity:'common',genes:['metabolism_p'],burden:3,desc:'Verändert den Stoffwechsel.'},
+  {id:'g4',name:'pGift-1',rarity:'common',genes:['toxin_p'],burden:4,desc:'Verändert die Giftwirkung.'},
+  {id:'g5',name:'pCaps-1',rarity:'common',genes:['capsule_p'],burden:4,desc:'Verändert die Schleimhülle.'},
+  {id:'u1',name:'pSprint-2',rarity:'uncommon',genes:['move_pp','wall_m'],burden:7,desc:'Starke Bewegung, dafür schwächere Zellwand.'},
+  {id:'u2',name:'pGuard-2',rarity:'uncommon',genes:['wall_pp','move_m'],burden:7,desc:'Starke Zellwand, dafür langsamere Bewegung.'},
+  {id:'u3',name:'pEco-2',rarity:'uncommon',genes:['metabolism_pp','toxin_m'],burden:7,desc:'Sehr effizienter Stoffwechsel, dafür schwächeres Gift.'},
+  {id:'u4',name:'pShield-2',rarity:'uncommon',genes:['capsule_pp','metabolism_m'],burden:8,desc:'Starke Schleimhülle mit Stoffwechselkosten.'},
+  {id:'r1',name:'pApex-3',rarity:'rare',genes:['move_pp','metabolism_pp','wall_m'],burden:11,desc:'Drei Gene mit Vor- und Nachteilen.'},
+  {id:'r2',name:'pFortis-3',rarity:'rare',genes:['wall_pp','capsule_pp','move_m'],burden:12,desc:'Starke Verteidigung, aber langsamere Bewegung.'},
+  {id:'r3',name:'pToxic-3',rarity:'rare',genes:['toxin_pp','move_pp','metabolism_mm'],burden:11,desc:'Gift und Bewegung stark, Stoffwechsel deutlich schwächer.'}
+];
+
+function zonePool(zoneType){
+  const r={beta:'beta',tet:'tet',amg:'amg',acid:'acid'}[zoneType];
+  return [
+    {id:'z'+zoneType+'1',name:'p'+zoneType.toUpperCase()+'-1',rarity:'common',genes:[r],burden:4,desc:'Zonenspezifische Resistenz.'},
+    {id:'z'+zoneType+'2a',name:'p'+zoneType.toUpperCase()+'-2A',rarity:'uncommon',genes:[r,'wall_p'],burden:8,desc:'Resistenz plus Zellwand-Vorteil.'},
+    {id:'z'+zoneType+'2b',name:'p'+zoneType.toUpperCase()+'-2B',rarity:'uncommon',genes:[r,'move_p'],burden:8,desc:'Resistenz plus Bewegungs-Vorteil.'},
+    {id:'z'+zoneType+'3a',name:'p'+zoneType.toUpperCase()+'-3A',rarity:'rare',genes:[r,'wall_pp','metabolism_m'],burden:11,desc:'Resistenz plus starke Zellwand, aber Stoffwechsel-Nachteil.'},
+    {id:'z'+zoneType+'3b',name:'p'+zoneType.toUpperCase()+'-3B',rarity:'rare',genes:[r,'move_pp','capsule_m'],burden:11,desc:'Resistenz plus starke Bewegung, aber schwächere Schleimhülle.'}
+  ];
+}
+
+function pickByRarity(pool){
+  const r=Math.random();
+  const rarity=r<0.66?'common':(r<0.91?'uncommon':'rare');
+  let choices=pool.filter(p=>p.rarity===rarity);
+  if(!choices.length) choices=pool;
+  return JSON.parse(JSON.stringify(choices[Math.floor(Math.random()*choices.length)]));
+}
+const MODIFIER_ATTRS=['wallStrength','move','capsule','metabolism','toxin'];
+function rollBaseModifierVariant(){
+  const r=Math.random();
+  // Standardverteilung für nicht garantierte Gene:
+  // + 50 %, - 30 %, ++ 10 %, -- 10 %
+  if(r<0.50) return 'p';
+  if(r<0.80) return 'm';
+  if(r<0.90) return 'pp';
+  return 'mm';
+}
+
+function rollGuaranteedPositiveVariant(rarity){
+  const r=Math.random();
+  // Das garantierte positive Gen ist bei Uncommon meist +,
+  // bei Rare deutlich häufiger ++.
+  if(rarity==='rare') return r<0.30 ? 'pp' : 'p';
+  return r<0.10 ? 'pp' : 'p';
+}
+
+function modifierIdFor(attr,variant){
+  const prefix={wallStrength:'wall',move:'move',capsule:'capsule',metabolism:'metabolism',toxin:'toxin'}[attr];
+  return prefix+'_'+variant;
+}
+
+function chooseDistinctModifierGenes(count,rarity='common'){
+  const attrs=[...MODIFIER_ATTRS];
+
+  // Attribute zufällig wählen, aber innerhalb eines Plasmids nicht doppeln.
+  for(let i=attrs.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [attrs[i],attrs[j]]=[attrs[j],attrs[i]];
+  }
+
+  const chosen=attrs.slice(0,count);
+  if(!chosen.length) return [];
+
+  // Common folgt vollständig der Standardverteilung.
+  if(rarity==='common'){
+    return chosen.map(attr=>modifierIdFor(attr,rollBaseModifierVariant()));
+  }
+
+  // Uncommon und Rare:
+  // Mindestens EIN Gen wird garantiert positiv.
+  // Alle übrigen Gene folgen wieder der Standardverteilung und dürfen
+  // damit auch - oder -- sein.
+  const guaranteedIndex=Math.floor(Math.random()*chosen.length);
+  return chosen.map((attr,index)=>{
+    const variant=index===guaranteedIndex
+      ? rollGuaranteedPositiveVariant(rarity)
+      : rollBaseModifierVariant();
+    return modifierIdFor(attr,variant);
+  });
+}
+
+function rollRarity(){ const r=Math.random(); return r<0.66?'common':(r<0.91?'uncommon':'rare'); }
+
+function randomGeneralPlasmid(){
+  const rarity=rollRarity(),count=rarity==='common'?1:rarity==='uncommon'?2:3;
+  const genes=chooseDistinctModifierGenes(count,rarity);
+  const desc=rarity==='common'
+    ? 'Common-Plasmid: Das Gen kann einen Vorteil oder Nachteil bewirken.'
+    : rarity==='uncommon'
+      ? 'Uncommon-Plasmid: Mindestens ein Gen ist positiv; das andere kann auch nachteilig sein.'
+      : 'Rare-Plasmid: Mindestens ein Gen ist positiv; weitere Gene können Vorteile oder Nachteile bringen.';
+  return {
+    id:'rnd_'+Math.random().toString(36).slice(2),
+    name:rarity==='common'?'pVar-1':rarity==='uncommon'?'pVar-2':'pVar-3',
+    rarity,genes,
+    burden:rarity==='common'?4:rarity==='uncommon'?8:12,
+    desc
+  };
+}
+
+function randomZonePlasmid(zoneType){
+  const rarity=rollRarity(),count=rarity==='common'?1:rarity==='uncommon'?2:3;
+  const res={beta:'beta',tet:'tet',amg:'amg',acid:'acid'}[zoneType];
+
+  // Bei zonenspezifischen Plasmiden zählt das Resistenzgen nicht als
+  // +/- Attribut. Deshalb wird bei Uncommon/Rare mindestens eines der
+  // zusätzlichen Merkmalsgene positiv garantiert.
+  const extraCount=count-1;
+  const extras=chooseDistinctModifierGenes(extraCount,rarity);
+  const genes=[res,...extras];
+
+  const desc=rarity==='common'
+    ? 'Zonenspezifisches Resistenz-Plasmid.'
+    : rarity==='uncommon'
+      ? 'Resistenz plus ein Zusatzgen, das positiv ist.'
+      : 'Resistenz plus zwei Zusatzgene; mindestens eines davon ist positiv.';
+
+  return {
+    id:'zone_'+zoneType+'_'+Math.random().toString(36).slice(2),
+    name:'p'+zoneType.toUpperCase()+'-'+count,
+    rarity,genes,
+    burden:rarity==='common'?4:rarity==='uncommon'?8:12,
+    desc
+  };
+}
+function rarityColor(r){ return RARITY_INFO[r].color; }
+
+const player = {
+  x:0,y:0,r:20,angle:0,
+  life:100,energy:100,wall:60,
+  baseSpeed:145,
+  mods:{wallStrength:0,move:0,capsule:0,metabolism:0,toxin:0},
+  resist:new Set(), plasmids:[], invuln:0, color:'#46e0d2',
+  divisionAnim:0, dividing:false, divisionTimer:0, divisionDuration:2.8, capturedBy:null,
+  mode:'simple'
+};
+
+const CHUNK=920;
+const chunks=new Map();
+const particles=[];
+const mines=[];
+const enemyProjectiles=[];
+const mission={
+  state:'collect',finalZone:null,finalActive:false,finalTimer:0,finalPhase:0,awaitingDivision:false,won:false,
+  phases:[{key:'beta',duration:5},{key:'tet',duration:5},{key:'amg',duration:5},{key:'acid',duration:5}]
+};
+function hasMainResistances(){ return player.resist.has('beta')&&player.resist.has('tet')&&player.resist.has('amg'); }
+function ensureFinalZone(){
+  if(mission.finalZone||!hasMainResistances()||mission.state!=='collect') return;
+  const a=Math.atan2(player.y||1,player.x||1)+1.35;
+  mission.finalZone={x:player.x+Math.cos(a)*1400,y:player.y+Math.sin(a)*1400,r:150};
+  mission.state='reachFinal';
+  setMessage('Alle drei Antibiotika-Resistenzen vorhanden. Finde das Selektionsgebiet!',3200);
+}
+function zoneColor(key){
+  return ({beta:'255,74,171',tet:'210,76,255',amg:'255,97,85',acid:'255,165,70'})[key];
+}
+function resLabel(r){
+  if(player.mode==='simple') return ({beta:'Antibiotikum A',tet:'Antibiotikum B',amg:'Antibiotikum C',acid:'Säure'})[r];
+  return ({beta:'β-Lactam',tet:'Tetracyclin',amg:'Aminoglykosid',acid:'Säure'})[r];
+}
+function updateMissionHUD(){
+  const t=document.getElementById('missionTitle'),x=document.getElementById('missionText'),p=document.getElementById('missionProgress'); if(!t)return;
+  const mark=r=>player.resist.has(r)?'✓':'○';
+  if(mission.state==='collect'){
+    t.textContent='Mission: Resistenzen sammeln';
+    x.textContent=player.mode==='simple'?'Finde die drei passenden Resistenz-Plasmide in den Gefahrenzonen.':'Erwirb durch Konjugation drei Antibiotikaresistenzen.';
+    p.textContent=`${mark('beta')} A   ${mark('tet')} B   ${mark('amg')} C`;
+  }else if(mission.state==='reachFinal'){
+    const d=mission.finalZone?Math.round(Math.hypot(player.x-mission.finalZone.x,player.y-mission.finalZone.y)/10):0;
+    t.textContent='Mission: Selektionsgebiet'; x.textContent='Erreiche die markierte Zielzone.'; p.textContent=`Entfernung: ${d} µm`;
+  }else if(mission.state==='final'){
+    const ph=mission.phases[mission.finalPhase]; t.textContent='Finale: Selektionsdruck'; x.textContent=`Überlebe: ${resLabel(ph.key)}`; p.textContent=`noch ${Math.max(0,mission.finalTimer).toFixed(1)} s`;
+  }else if(mission.state==='divide'){
+    t.textContent='Letzter Schritt'; x.textContent='Sammle 90 Energie und führe eine Zellteilung durch. 80 werden verbraucht, 10 bleiben übrig.'; p.textContent='Während der Teilung bist du unbeweglich.';
+  }else if(mission.state==='won'){t.textContent='Mission erfüllt';x.textContent='Neue Population gegründet.';p.textContent='';}
+}
+function finishGame(){
+  if(mission.won)return; mission.won=true; mission.state='won'; paused=true;
+  const fitness=Math.max(0,Math.round(100-totalBurden()*2));
+  document.getElementById('victoryText').textContent=player.mode==='simple'?'Du hast alle drei Antibiotika-Gefahren überlebt und dich erfolgreich geteilt. Deine Tochterzelle übernimmt die Plasmide.':'Durch horizontalen Gentransfer wurden Resistenzgene erworben. Die Zelle hat den Selektionsdruck überlebt und ihre Plasmide an die Tochterzelle weitergegeben.';
+  document.getElementById('fitnessScore').textContent=`Fitnesswertung: ${fitness}%`;
+  document.getElementById('victoryWrap').style.display='grid';
+}
+
+
+let running=false;
+let paused=true;
+let deathPending=null;
+let idCounter=1;
+
+const messageEl=document.getElementById('message');
+function setMessage(text, ms=1600){
+  messageEl.textContent=text; messageEl.style.opacity=1;
+  clearTimeout(setMessage.t);
+  setMessage.t=setTimeout(()=>messageEl.style.opacity=0,ms);
+}
+
+function hash2(x,y){
+  let n=(x*374761393 + y*668265263)^0x9e3779b9;
+  n=(n^(n>>>13))*1274126177;
+  return ((n^(n>>>16))>>>0)/4294967295;
+}
+
+function makeZoneRewardCluster(arr,x,y,rad){
+  const count = 12 + Math.floor(Math.random()*8);
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2;
+    const rr=rad*0.25 + Math.random()*rad*0.55;
+    arr.push({kind:'food',x:x+Math.cos(a)*rr,y:y+Math.sin(a)*rr,r:10+Math.random()*6,alive:true,pulse:Math.random()*6.28});
+  }
+  const wallCount = 3 + Math.floor(Math.random()*4);
+  for(let i=0;i<wallCount;i++){
+    const a=Math.random()*Math.PI*2;
+    const rr=rad*0.2 + Math.random()*rad*0.45;
+    arr.push({kind:'wallmat',x:x+Math.cos(a)*rr,y:y+Math.sin(a)*rr,r:10+Math.random()*4,alive:true,pulse:Math.random()*6.28});
+  }
+}
+
+// Dieselbe deterministische Beschreibung für Spielwelt und Wegweiser.
+// Die Suche erzeugt keine Bakterien oder neuen Weltabschnitte.
+function zoneAtChunk(cx,cy){
+  if(hash2(cx+19,cy-7)<=.61) return null;
+  const types=['beta','tet','amg','acid'];
+  return {
+    x:(cx+.5)*CHUNK,
+    y:(cy+.5)*CHUNK,
+    r:165+hash2(cx-2,cy+4)*120,
+    zoneType:types[Math.floor(hash2(cx+9,cy+3)*types.length)]
+  };
+}
+function nearestHazardZones(){
+  const nearest={beta:null,tet:null,amg:null,acid:null};
+  const cx=Math.floor(player.x/CHUNK),cy=Math.floor(player.y/CHUNK);
+  // Auch noch nicht besuchte Gebiete berücksichtigen. Ringweise suchen,
+  // bis kein weiter außen liegender Zonenmittelpunkt näher sein kann.
+  for(let ring=0;ring<=32;ring++){
+    for(let x=cx-ring;x<=cx+ring;x++) for(let y=cy-ring;y<=cy+ring;y++){
+      if(ring>0 && Math.abs(x-cx)!==ring && Math.abs(y-cy)!==ring) continue;
+      const zone=zoneAtChunk(x,y);
+      if(!zone) continue;
+      const distance=Math.hypot(zone.x-player.x,zone.y-player.y);
+      const best=nearest[zone.zoneType];
+      if(!best || distance<best.distance) nearest[zone.zoneType]={...zone,distance};
+    }
+    const outsideDistance=Math.min(
+      player.x-(cx-ring-.5)*CHUNK,(cx+ring+1.5)*CHUNK-player.x,
+      player.y-(cy-ring-.5)*CHUNK,(cy+ring+1.5)*CHUNK-player.y
+    );
+    if(Object.values(nearest).every(zone=>zone && zone.distance<=outsideDistance)) break;
+  }
+  return nearest;
+}
+
+function makeChunk(cx,cy){
+  const key=cx+','+cy;
+  if(chunks.has(key)) return;
+
+  const arr=[];
+
+  // Gefahrenzone dieses Chunks zuerst festlegen. So kann beim Erzeugen eines
+  // Bakteriums entschieden werden, ob es ein zonenspezifisches Resistenzplasmid trägt.
+  const description=zoneAtChunk(cx,cy);
+  const zone=description ? {kind:'zone',...description,alive:true,phase:rand(0,6.28)} : null;
+  if(zone) arr.push(zone);
+
+  const density=20+Math.floor(hash2(cx,cy)*16);
+  for(let i=0;i<density;i++){
+    const x=cx*CHUNK+rand(60,CHUNK-60);
+    const y=cy*CHUNK+rand(60,CHUNK-60);
+    const q=Math.random();
+
+    if(q<0.32){
+      arr.push({kind:'food',x,y,r:9+rand(0,5),alive:true,pulse:rand(0,6.28)});
+    }else if(q<0.43){
+      arr.push({kind:'wallmat',x,y,r:10+rand(0,5),alive:true,pulse:rand(0,6.28)});
+    }else if(q<0.59){
+      const insideZone=zone && Math.hypot(x-zone.x,y-zone.y)<zone.r*0.88;
+      arr.push({
+        kind:'bacterium',x,y,r:22,alive:true,phase:Math.random()*6.28,dir:rand(0,6.28),
+        plasmid:insideZone ? randomZonePlasmid(zone.zoneType) : randomGeneralPlasmid(),
+        zoneAdapted:insideZone ? zone.zoneType : null
+      });
+    }else if(q<0.71){
+      arr.push({kind:'aggressive',x,y,r:22,alive:true,phase:Math.random()*6.28,dir:rand(0,6.28),cool:rand(0,2)});
+    }else if(q<0.86){
+      arr.push({kind:'phage',x,y,r:15,alive:true,phase:Math.random()*6.28,mode:'idle',chaseTime:0,cool:rand(0,2)});
+    }else if(q<0.93){
+      arr.push({kind:'amoeba',x,y,r:62+rand(0,26),alive:true,phase:Math.random()*6.28,dir:rand(0,6.28),warned:false,id:idCounter++});
+    }
+  }
+
+  if(zone){
+    // Hohe Belohnung in gefährlichen Gebieten.
+    makeZoneRewardCluster(arr,zone.x,zone.y,zone.r);
+
+    // Garantierte angepasste Donorbakterien im Inneren der Zone.
+    // Dadurch muss der Spieler die Gefahrenzone tatsächlich betreten,
+    // um an das passende Resistenzgen zu gelangen.
+    const donors=5+Math.floor(Math.random()*3);
+    for(let i=0;i<donors;i++){
+      const a=Math.random()*Math.PI*2;
+      const rr=zone.r*(0.25+Math.random()*0.48);
+      arr.push({
+        kind:'bacterium',
+        x:zone.x+Math.cos(a)*rr,
+        y:zone.y+Math.sin(a)*rr,
+        r:22,
+        alive:true,
+        phase:Math.random()*6.28,
+        dir:rand(0,6.28),
+        plasmid:randomZonePlasmid(zone.zoneType),
+        zoneAdapted:zone.zoneType
+      });
+    }
+  }
+
+  chunks.set(key,arr);
+}
+
+function ensureWorld(){
+  const cx=Math.floor(player.x/CHUNK), cy=Math.floor(player.y/CHUNK);
+  for(let dx=-2;dx<=2;dx++) for(let dy=-2;dy<=2;dy++) makeChunk(cx+dx,cy+dy);
+}
+
+function totalBurden(list=player.plasmids){ return list.reduce((s,p)=>s+p.burden,0); }
+function geneLabel(id){ const g=geneEffects[id]; return player.mode==='simple'?g.simple:g.scientific; }
+function applyGene(state,id,sign=1){
+  const g=geneEffects[id];
+  if(g.type==='res'){ if(sign>0)state.resist.add(g.res); else state.resist.delete(g.res); }
+  else state.mods[g.attr]=(state.mods[g.attr]||0)+g.pct*sign;
+}
+function removePlasmidFromPlayer(plasmid){ plasmid.genes.forEach(g=>applyGene(player,g,-1)); }
+function applyPlasmidToPlayer(plasmid){ player.plasmids.push(plasmid); plasmid.genes.forEach(g=>applyGene(player,g,1)); }
+function currentSummary(){ return {...player.mods,burden:totalBurden(),resistances:['beta','tet','amg','acid'].filter(r=>player.resist.has(r))}; }
+function playerPreview(replaceIndex,newPlasmid){
+  const temp={mods:{...player.mods},resist:new Set(player.resist)};
+  if(replaceIndex!==null&&replaceIndex!==undefined) player.plasmids[replaceIndex].genes.forEach(g=>applyGene(temp,g,-1));
+  newPlasmid.genes.forEach(g=>applyGene(temp,g,1));
+  return {...temp.mods,burden:totalBurden()+newPlasmid.burden-(replaceIndex!=null?player.plasmids[replaceIndex].burden:0),resistances:['beta','tet','amg','acid'].filter(r=>temp.resist.has(r))};
+}
+function statRow(name,current,future){
+  const delta=future-current,cls=delta>0?'deltaUp':delta<0?'deltaDown':'',sgn=delta>0?'+':'';
+  return `<div class="statBox"><strong>${name}</strong><br>aktuell: ${current>=0?'+':''}${current}%<br>danach: ${future>=0?'+':''}${future}%<br><span class="${cls}">${sgn}${delta}%</span></div>`;
+}
+function resistRow(cur,fut){
+  const lines=['beta','tet','amg','acid'].map(r=>{const b=cur.includes(r)?100:0,a=fut.includes(r)?100:0,d=a-b,cl=d>0?'deltaUp':d<0?'deltaDown':'';return `${resLabel(r)}: ${b}% → ${a}% <span class="${cl}">(${d>=0?'+':''}${d}%)</span>`;}).join('<br>');
+  return `<div class="statBox"><strong>Schutz</strong><br>${lines}</div>`;
+}
+const dialogWrap=document.getElementById('dialogWrap');
+const dialogContent=document.getElementById('dialogContent');
+function closeDialog(){ dialogWrap.style.display='none'; paused=false; }
+function renderCompareDialog(newPlasmid){
+  plasmidBox.classList.remove('open');
+  paused=true;
+  const cur=currentSummary(), future=playerPreview(null,newPlasmid);
+  dialogContent.innerHTML=`
+    <h2>Neues Plasmid gefunden: ${newPlasmid.name}</h2>
+    <p>Dieses Plasmid ist <strong>${RARITY_INFO[newPlasmid.rarity].label}</strong> und trägt <strong>${newPlasmid.genes.length} Gen${newPlasmid.genes.length>1?'e':''}</strong>.</p>
+    <div class="compareGrid">
+      <div class="card">
+        <h3>Neues Plasmid <span class="tag ${RARITY_INFO[newPlasmid.rarity].className}">${RARITY_INFO[newPlasmid.rarity].label}</span></h3>
+        <div class="geneList">${newPlasmid.genes.map(g=>`<span class="gene">${geneLabel(g)}</span>`).join('')}</div>
+        <p>${newPlasmid.desc}</p><p><strong>Plasmidlast:</strong> +${newPlasmid.burden}%</p>
+      </div>
+      <div class="card">
+        <h3>Veränderung beim Behalten</h3>
+        <div class="statsPreview">
+          ${statRow('Bewegung',cur.move,future.move)}
+          ${statRow('Schleimhülle',cur.capsule,future.capsule)}
+          ${statRow('Stoffwechsel',cur.metabolism,future.metabolism)}
+          ${statRow('Gift',cur.toxin,future.toxin)}
+          ${statRow('Zellwand',cur.wallStrength,future.wallStrength)}
+          ${statRow('Plasmidlast',cur.burden,future.burden)}
+          ${resistRow(cur.resistances,future.resistances)}
+        </div>
+      </div>
+    </div>
+  `;
+  if(player.plasmids.length<4){
+    dialogContent.innerHTML += `<div class="dialogButtons"><button id="keepBtn" class="wideBtn">Behalten</button><button id="discardBtn" class="ghostBtn">Verwerfen</button></div>`;
+    dialogWrap.style.display='grid';
+    document.getElementById('keepBtn').onclick=()=>{ applyPlasmidToPlayer(newPlasmid); closeDialog(); updateHUD(); setMessage(newPlasmid.name+' integriert.'); };
+    document.getElementById('discardBtn').onclick=()=>closeDialog();
+  } else {
+    dialogContent.innerHTML += `<div class="card" style="margin-top:14px"><h3>Plasmid ersetzen</h3><p>Alle 4 Plätze sind belegt. Wähle ein vorhandenes Plasmid aus.</p><div class="slotList" id="slotList"></div></div><div class="dialogButtons"><button id="discardBtn" class="ghostBtn">Verwerfen</button></div>`;
+    dialogWrap.style.display='grid';
+    const slotList=dialogContent.querySelector('#slotList');
+    player.plasmids.forEach((p,idx)=>{
+      const preview=playerPreview(idx,newPlasmid);
+      const card=document.createElement('div');
+      card.className='slotCard';
+      card.innerHTML=`
+        <div class="slotTop">
+          <div><strong>${p.name}</strong> <span class="tag ${RARITY_INFO[p.rarity].className}">${RARITY_INFO[p.rarity].label}</span><div class="small">${p.genes.map(g=>geneLabel(g)).join(', ')}</div></div>
+          <button class="replaceBtn">Ersetzen</button>
+        </div>
+        <div class="statsPreview" style="margin-top:10px">
+          ${statRow('Bewegung',cur.move,preview.move)}
+          ${statRow('Schleimhülle',cur.capsule,preview.capsule)}
+          ${statRow('Stoffwechsel',cur.metabolism,preview.metabolism)}
+          ${statRow('Plasmidlast',cur.burden,preview.burden)}
+          ${resistRow(cur.resistances,preview.resistances)}
+        </div>
+      `;
+      card.querySelector('.replaceBtn').onclick=()=>{
+        removePlasmidFromPlayer(player.plasmids[idx]);
+        player.plasmids.splice(idx,1);
+        applyPlasmidToPlayer(newPlasmid);
+        closeDialog(); updateHUD(); setMessage(p.name+' ersetzt durch '+newPlasmid.name+'.',2200);
+      };
+      slotList.appendChild(card);
+    });
+    document.getElementById('discardBtn').onclick=()=>closeDialog();
+  }
+}
+
+function updateHUD(){
+  document.getElementById('lifeText').textContent=Math.round(player.life);
+  document.getElementById('lifeFill').style.width=clamp(player.life,0,100)+'%';
+  document.getElementById('energyText').textContent=Math.round(player.energy);
+  document.getElementById('energyFill').style.width=clamp(player.energy,0,100)+'%';
+  document.getElementById('wallText').textContent=Math.round(player.wall);
+  document.getElementById('wallFill').style.width=clamp(player.wall,0,100)+'%';
+  const f=v=>(v>=0?'+':'')+Math.round(v)+'%';
+  document.getElementById('wallModText').textContent=f(player.mods.wallStrength);
+  document.getElementById('moveText').textContent=f(player.mods.move);
+  document.getElementById('capsuleText').textContent=f(player.mods.capsule);
+  document.getElementById('metabolismText').textContent=f(player.mods.metabolism);
+  document.getElementById('toxinText').textContent=f(player.mods.toxin);
+  document.getElementById('burdenText').textContent=totalBurden()+' %';
+
+  document.getElementById('resA').classList.toggle('on',player.resist.has('beta'));
+  document.getElementById('resB').classList.toggle('on',player.resist.has('tet'));
+  document.getElementById('resC').classList.toggle('on',player.resist.has('amg'));
+  document.getElementById('resAcid').classList.toggle('on',player.resist.has('acid'));
+  document.getElementById('distanceText').textContent=Math.round(Math.hypot(player.x,player.y)/10)+' µm';
+  document.getElementById('slotText').textContent=player.plasmids.length+'/4';
+  const plist=document.getElementById('plist');
+  plist.innerHTML=player.plasmids.length?player.plasmids.map(p=>`<div class="pitem"><div class="ptitle">${p.name}<span class="tag ${RARITY_INFO[p.rarity].className}">${RARITY_INFO[p.rarity].label}</span></div><div>${p.genes.map(g=>geneLabel(g)).join(', ')}</div><div class="small">Plasmidlast +${p.burden}%</div></div>`).join(''):'<div class="small" style="margin-top:8px">Noch keine Plasmide.</div>';
+  updateMissionHUD();
+}
+
+function clearMovement(){
+  for(const key of Object.keys(keys)) delete keys[key];
+  joy.active=false; joy.id=null; joy.dx=joy.dy=0;
+  joyBase.style.display='none';
+}
+function respawn(msg){
+  if(deathPending || mission.won) return;
+  paused=true;
+  clearMovement();
+  // Erst beim Bestätigen entfernen; bis dahin bleibt die Spielwelt eingefroren.
+  const candidates=[...player.plasmids];
+  const lost=[];
+  while(candidates.length && lost.length<2){
+    lost.push(candidates.splice(Math.floor(Math.random()*candidates.length),1)[0]);
+  }
+  deathPending={lost};
+  player.life=Math.max(0,player.life); player.wall=Math.max(0,player.wall);
+  clearTimeout(setMessage.t); messageEl.style.opacity=0;
+  plasmidBox.classList.remove('open');
+  document.getElementById('deathReason').textContent=msg || 'Deine Zelle hat die Gefahren nicht überlebt.';
+  document.getElementById('deathPenalty').textContent=lost.length
+    ? `Beim Neustart verlierst du ${lost.length===1?'ein Plasmid':'zwei Plasmide'}: ${lost.map(p=>p.name).join(', ')}. Die übrigen Plasmide bleiben erhalten. Die Endphase wird zurückgesetzt.`
+    : 'Du besitzt noch keine Plasmide und verlierst daher keine. Die Endphase wird zurückgesetzt.';
+  document.getElementById('deathWrap').style.display='grid';
+  updateHUD();
+  document.getElementById('respawnBtn').focus();
+}
+function confirmRespawn(){
+  if(!deathPending) return;
+  const lost=deathPending.lost;
+  player.plasmids=player.plasmids.filter(p=>!lost.includes(p));
+  // Alles neu ableiten: Ein Resistenzgen kann auf mehreren Plasmiden liegen.
+  player.resist.clear();
+  for(const attr of MODIFIER_ATTRS) player.mods[attr]=0;
+  for(const p of player.plasmids) p.genes.forEach(g=>applyGene(player,g));
+  player.life=100; player.energy=85; player.wall=60;
+  player.x=0; player.y=0; player.capturedBy=null; player.invuln=1;
+  player.dividing=false; player.divisionTimer=0; player.divisionAnim=0;
+  Object.assign(mission,{state:'collect',finalZone:null,finalActive:false,finalTimer:0,finalPhase:0,awaitingDivision:false,won:false});
+  clearMovement();
+  deathPending=null;
+  document.getElementById('deathWrap').style.display='none';
+  document.getElementById('respawnBtn').blur();
+  paused=false;
+  updateHUD();
+  setMessage(`Neustart am Ursprung – ${lost.length} Plasmid${lost.length===1?'':'e'} verloren.`,2600);
+}
+ document.getElementById('respawnBtn').onclick=confirmRespawn;
+function damageLife(amount){
+  if(paused || player.invuln>0) return;
+  const shield=clamp(1-player.mods.capsule/100,0.55,1.35);
+  player.life-=amount*shield;
+  player.invuln=0.18;
+  if(player.life<=0) respawn('Die Zelle wurde zerstört.');
+}
+function damageWall(amount){
+  if(paused) return;
+  const factor=clamp(1-player.mods.wallStrength/100,0.55,1.5);
+  player.wall-=amount*factor;
+  if(player.wall<=0){ player.wall=0; respawn('Die Zellwand wurde durchbrochen – Zelle lysiert.'); }
+}
+function dropMine(){
+  if(paused || player.capturedBy || player.dividing) return;
+  if(player.energy<10){ setMessage('Zu wenig Energie für Bakteriocin.'); return; }
+  player.energy-=10;
+  mines.push({x:player.x,y:player.y,r:8,t:0,life:8,power:Math.max(.4,1+player.mods.toxin/100)});
+}
+function cellDivision(){
+  if(paused || player.capturedBy || player.dividing) return;
+
+  // Die Zellteilung kostet weiterhin 80 Energie.
+  // Sie darf aber erst ab 90 Energie gestartet werden,
+  // damit danach immer mindestens 10 Energie verbleiben.
+  if(player.energy<90){
+    setMessage('Für Zellteilung brauchst du 90 Energie: 80 werden verbraucht, 10 bleiben als Reserve.',2200);
+    return;
+  }
+
+  player.energy-=80;
+  player.energy=Math.max(10,player.energy);
+
+  player.dividing=true;
+  player.divisionTimer=player.divisionDuration;
+  player.divisionAnim=player.divisionDuration;
+  setMessage('Zellteilung gestartet – 10 Energie bleiben als Reserve.',2200);
+}
+function nearbyBacterium(){
+  let best=null, bd=86;
+  for(const arr of chunks.values()) for(const o of arr){
+    if(o.alive&&o.kind==='bacterium'){
+      const d=dist(player,o);
+      if(d<bd){ bd=d; best=o; }
+    }
+  }
+  return best;
+}
+
+const animWrap=document.getElementById('animWrap');
+const conjCanvas=document.getElementById('conjCanvas');
+const cctx=conjCanvas.getContext('2d');
+const animCaption=document.getElementById('animCaption');
+const conjPause=document.getElementById('conjPause');
+const conjProgress=document.getElementById('conjProgress');
+const conjProgressFill=document.getElementById('conjProgressFill');
+const conjSteps=Array.from(document.getElementById('conjSteps').children);
+let animState=null, pendingPlasmid=null;
+
+function startConjugation(bact){
+  if(paused || player.capturedBy || player.dividing) return;
+  plasmidBox.classList.remove('open');
+  if(player.energy<18){ setMessage('Zu wenig Energie für Konjugation (18 Energie).'); return; }
+  player.energy-=18;
+  bact.alive=false;
+  paused=true;
+  clearMovement();
+  pendingPlasmid=bact.plasmid;
+  const rarity=RARITY_INFO[bact.plasmid.rarity];
+  animState={
+    plasmid:bact.plasmid,t:0,duration:12,playing:true,phase:-1,
+    scene:GameConjugation.create({plasmidColor:rarity.color,recipientColor:player.color,
+      donorLabel:player.mode==='scientific'?'Donorzelle':'Spenderzelle',recipientLabel:'Deine Zelle'})
+  };
+  const badge=document.getElementById('animRarity');
+  badge.textContent=bact.plasmid.name+' · '+rarity.label;
+  badge.className='tag '+rarity.className;
+  document.getElementById('conjPlasmidSwatch').style.backgroundColor=rarity.color;
+  document.getElementById('conjPlasmidLegend').textContent='Plasmid · '+rarity.label;
+  conjProgressFill.style.backgroundColor=rarity.color;
+  conjPause.textContent='Pause';
+  conjPause.setAttribute('aria-label','Animation pausieren');
+  animWrap.style.display='grid';
+  drawConjugationAnimation(0);
+  updateHUD();
+  conjPause.focus({preventScroll:true});
+}
+function finishConjugation(){
+  // Skip and automatic completion can coincide; each transfer opens the choice only once.
+  if(!animState || !pendingPlasmid) return;
+  const plasmid=pendingPlasmid;
+  animState=null;
+  pendingPlasmid=null;
+  animWrap.style.display='none';
+  conjPause.blur();
+  clearMovement();
+  renderCompareDialog(plasmid);
+}
+function tryConjugate(){
+  const b=nearbyBacterium();
+  if(!b){ setMessage('Kein Konjugationspartner in Reichweite.'); return; }
+  startConjugation(b);
+}
+
+document.getElementById('skipAnim').onclick=finishConjugation;
+conjPause.onclick=()=>{
+  if(!animState) return;
+  animState.playing=!animState.playing;
+  conjPause.textContent=animState.playing?'Pause':'Weiter';
+  conjPause.setAttribute('aria-label',animState.playing?'Animation pausieren':'Animation fortsetzen');
+};
+
+function drawConjugationAnimation(dt){
+  if(!animState) return;
+  if(animState.playing && !document.hidden) animState.t=Math.min(animState.duration,animState.t+Math.max(0,dt));
+  const animationTime=animState.t/animState.duration*animState.scene.DURATION;
+  const frame=animState.scene.renderScene(cctx,animationTime,{width:conjCanvas.width,height:conjCanvas.height});
+  if(frame.phase!==animState.phase){
+    animState.phase=frame.phase;
+    animCaption.textContent=animState.scene.PHASES[frame.phase].text;
+    conjSteps.forEach((step,index)=>{
+      if(index===frame.phase) step.setAttribute('aria-current','step');
+      else step.removeAttribute('aria-current');
+    });
+  }
+  const progress=animState.t/animState.duration*100;
+  conjProgressFill.style.width=progress.toFixed(1)+'%';
+  conjProgress.setAttribute('aria-valuenow',Math.round(progress));
+  if(animState.t>=animState.duration) finishConjugation();
+}
+
+const joy={active:false,id:null,cx:0,cy:0,dx:0,dy:0};
+const joyZone=document.getElementById('joyZone');
+const joyBase=document.getElementById('joyBase');
+const joyKnob=document.getElementById('joyKnob');
+function joyStart(e){
+  if(paused || !running) return;
+  const t=e.changedTouches?e.changedTouches[0]:e;
+  const p=screenToStage(t.clientX,t.clientY);
+  joy.active=true; joy.id=t.identifier??'mouse'; joy.cx=p.x; joy.cy=p.y;
+  joyBase.style.display='block'; joyBase.style.left=joy.cx+'px'; joyBase.style.top=joy.cy+'px';
+  setJoy(p.x,p.y); e.preventDefault();
+}
+function setJoy(x,y){
+  let dx=x-joy.cx, dy=y-joy.cy, m=Math.hypot(dx,dy), max=36;
+  if(m>max){ dx=dx/m*max; dy=dy/m*max; }
+  joy.dx=dx/max; joy.dy=dy/max;
+  joyKnob.style.left=(59+dx)+'px'; joyKnob.style.top=(59+dy)+'px';
+}
+function joyMove(e){
+  if(!joy.active) return;
+  const list=e.changedTouches?[...e.changedTouches]:[e];
+  const t=list.find(v=>(v.identifier??'mouse')===joy.id); if(!t) return;
+  const p=screenToStage(t.clientX,t.clientY);
+  setJoy(p.x,p.y); e.preventDefault();
+}
+function joyEnd(e){
+  if(!joy.active) return;
+  joy.active=false; joy.dx=joy.dy=0; joyBase.style.display='none'; e.preventDefault();
+}
+joyZone.addEventListener('touchstart',joyStart,{passive:false});
+joyZone.addEventListener('touchmove',joyMove,{passive:false});
+joyZone.addEventListener('touchend',joyEnd,{passive:false});
+joyZone.addEventListener('touchcancel',joyEnd,{passive:false});
+joyZone.addEventListener('mousedown',joyStart);
+addEventListener('mousemove',e=>joy.active&&joyMove(e));
+addEventListener('mouseup',e=>joy.active&&joyEnd(e));
+
+
+const inventoryBtn=document.getElementById('inventoryBtn');
+const plasmidBox=document.getElementById('plasmidBox');
+inventoryBtn.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  e.stopPropagation();
+  plasmidBox.classList.toggle('open');
+});
+
+const keys={};
+addEventListener('keydown',e=>{
+  if(paused || !running) return;
+  keys[e.key.toLowerCase()]=true;
+  if(e.key.toLowerCase()==='e') tryConjugate();
+  if(e.code==='Space'){ dropMine(); e.preventDefault(); }
+  if(e.key.toLowerCase()==='q') cellDivision();
+});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+document.getElementById('btnA').addEventListener('pointerdown',e=>{e.preventDefault();tryConjugate();});
+document.getElementById('btnB').addEventListener('pointerdown',e=>{e.preventDefault();dropMine();});
+document.getElementById('btnC').addEventListener('pointerdown',e=>{e.preventDefault();cellDivision();});
+
+function update(dt){
+  if(paused) return;
+  ensureWorld();
+  ensureFinalZone();
+  if(mission.state==='reachFinal'&&mission.finalZone&&Math.hypot(player.x-mission.finalZone.x,player.y-mission.finalZone.y)<mission.finalZone.r-20){
+    mission.state='final';mission.finalActive=true;mission.finalPhase=0;mission.finalTimer=mission.phases[0].duration;setMessage('Selektionsphase gestartet!',2200);
+  }
+  if(mission.state==='final'&&mission.finalActive){
+    const ph=mission.phases[mission.finalPhase];
+    const protectedNow=player.resist.has(ph.key);
+    if(!protectedNow){
+      if(ph.key==='acid'){
+        // Die letzte Säurephase ist absichtlich überlebbar: Säureschutz ist hilfreich,
+        // aber für den Sieg nicht zwingend notwendig.
+        const lifeFactor=clamp(1-player.mods.capsule/100,0.55,1.35);
+        const wallFactor=clamp(1-player.mods.wallStrength/100,0.55,1.5);
+        player.life-=12*lifeFactor*dt; player.wall-=6*wallFactor*dt;
+      }else{
+        player.life-=150*dt;player.wall-=100*dt;
+      }
+      if(player.life<=0||player.wall<=0){respawn('Selektionsdruck nicht überlebt.');return;}
+    }
+    mission.finalTimer-=dt;
+    if(mission.finalTimer<=0&&mission.state==='final'){
+      mission.finalPhase++;
+      if(mission.finalPhase>=mission.phases.length){mission.finalActive=false;mission.state='divide';mission.awaitingDivision=true;setMessage('Selektionsphase überlebt. Teile dich jetzt ein letztes Mal!',3200);}
+      else mission.finalTimer=mission.phases[mission.finalPhase].duration;
+    }
+  }
+
+  let dx=joy.dx, dy=joy.dy;
+  if(keys['a']||keys['arrowleft']) dx-=1;
+  if(keys['d']||keys['arrowright']) dx+=1;
+  if(keys['w']||keys['arrowup']) dy-=1;
+  if(keys['s']||keys['arrowdown']) dy+=1;
+  let m=Math.hypot(dx,dy);
+  if(m>1){ dx/=m; dy/=m; m=1; }
+
+  if(player.capturedBy){
+    // in amoeba: cannot escape, follows amoeba center and takes high damage
+    const amo=player.capturedBy;
+    player.x=lerp(player.x,amo.x,0.22);
+    player.y=lerp(player.y,amo.y,0.22);
+    player.life-=120*dt;
+    if(player.life<=0){respawn('In der Amöbe wurde die Zelle verdaut.');return;}
+  } else if(player.dividing){
+    // Während der Zellteilung ist das Bakterium unbeweglich.
+    if(m>0.05) player.angle=Math.atan2(dy,dx);
+  } else {
+    if(m>0.05) player.angle=Math.atan2(dy,dx);
+    const burdenFactor=Math.max(.55,1-totalBurden()/120);
+    const actualSpeed=player.baseSpeed*(1+player.mods.move/100);
+    player.x += dx*actualSpeed*burdenFactor*dt;
+    player.y += dy*actualSpeed*burdenFactor*dt;
+  }
+
+  const movingNow = (!player.capturedBy && !player.dividing && m>0.05);
+  player.energy=clamp(player.energy - dt*(0.75+totalBurden()*0.018)*(movingNow?1.22:.60),0,100);
+  player.energy=clamp(player.energy + dt*3.0*(1+player.mods.metabolism/100)*((!player.capturedBy && !player.dividing && m<0.05)?1:.25),0,100);
+  if(player.energy<=0) damageLife(7*dt);
+  if(paused) return;
+  if(player.invuln>0) player.invuln-=dt;
+  if(player.divisionAnim>0) player.divisionAnim-=dt;
+
+  if(player.dividing){
+    player.divisionTimer-=dt;
+    player.divisionAnim=player.divisionTimer;
+    if(player.divisionTimer<=0){
+      player.dividing=false;
+      player.divisionTimer=0;
+      player.divisionAnim=0;
+      player.life=100;
+      player.wall=clamp(player.wall+25,0,100);
+      setMessage('Zellteilung abgeschlossen – neue Zelle ist ausgewachsen.',2200);
+      if(mission.awaitingDivision){mission.awaitingDivision=false;finishGame();return;}
+    }
+  }
+
+  const pcx=Math.floor(player.x/CHUNK), pcy=Math.floor(player.y/CHUNK);
+  for(let cx=pcx-2;cx<=pcx+2;cx++) for(let cy=pcy-2;cy<=pcy+2;cy++){
+    const arr=chunks.get(cx+','+cy); if(!arr) continue;
+    for(const o of arr){
+      if(!o.alive) continue;
+      const d=dist(player,o);
+
+      if(o.kind==='food'){
+        o.pulse += dt;
+        if(d<player.r+o.r+5){ o.alive=false; player.energy=clamp(player.energy+8*(1+player.mods.metabolism/100),0,100); particles.push({kind:'burst',x:o.x,y:o.y,vx:rand(-45,45),vy:rand(-45,45),life:0.6,color:'#f4c542'}); }
+      }
+      else if(o.kind==='wallmat'){
+        o.pulse += dt;
+        if(d<player.r+o.r+5){ o.alive=false; player.wall=clamp(player.wall+18,0,100); particles.push({kind:'burst',x:o.x,y:o.y,vx:rand(-45,45),vy:rand(-45,45),life:0.6,color:'#5ed0ff'}); }
+      }
+      else if(o.kind==='bacterium'){
+        o.phase += dt;
+        o.x += Math.cos(o.dir+Math.sin(o.phase)*0.6)*10*dt;
+        o.y += Math.sin(o.dir+Math.sin(o.phase)*0.6)*10*dt;
+      }
+      else if(o.kind==='aggressive'){
+        o.phase += dt;
+        o.cool -= dt;
+        if(d<260){
+          const target=Math.atan2(player.y-o.y, player.x-o.x);
+          o.dir=lerp(o.dir,target,dt*1.5);
+        } else if(Math.random()<0.004){
+          o.dir += rand(-0.9,0.9);
+        }
+        o.x += Math.cos(o.dir)*14*dt;
+        o.y += Math.sin(o.dir)*14*dt;
+        if(d<265 && o.cool<=0){
+          const ang=Math.atan2(player.y-o.y, player.x-o.x);
+          enemyProjectiles.push({x:o.x,y:o.y,vx:Math.cos(ang)*105,vy:Math.sin(ang)*105,r:8,life:3.5});
+          o.cool=2.2+Math.random()*1.2;
+        }
+      }
+      else if(o.kind==='phage'){
+        o.phase += dt;
+        if(o.mode==='idle'){
+          o.cool -= dt;
+          o.x += Math.cos(o.phase*1.2)*8*dt;
+          o.y += Math.sin(o.phase*.9)*8*dt;
+          if(d<170 && o.cool<=0){ o.mode='chase'; o.chaseTime=4.8+Math.random()*1.8; }
+        } else {
+          o.chaseTime -= dt;
+          const vx=(player.x-o.x)/Math.max(d,1), vy=(player.y-o.y)/Math.max(d,1);
+          o.x += vx*78*dt; o.y += vy*78*dt;
+          if(o.chaseTime<=0 || d>300){ o.mode='idle'; o.cool=3+Math.random()*2; }
+        }
+        if(d<player.r+o.r+4){
+          damageWall(19);
+          if(paused) return;
+          o.mode='idle'; o.cool=3.5; o.x+=rand(-140,140); o.y+=rand(-140,140);
+          setMessage('Bakteriophage beschädigt die Zellwand!',900);
+        }
+      }
+      else if(o.kind==='amoeba'){
+        o.phase += dt*0.9;
+        const slow = d<330 ? 16 : 8;
+        const targetAng = d<330 ? Math.atan2(player.y-o.y, player.x-o.x) : o.dir + Math.sin(o.phase)*0.06;
+        o.dir = lerp(o.dir,targetAng,dt*0.45);
+        o.x += Math.cos(o.dir)*slow*dt;
+        o.y += Math.sin(o.dir)*slow*dt;
+        if(Math.random()<0.002) o.dir += rand(-0.8,0.8);
+
+        if(!player.capturedBy && d<player.r+o.r*0.72){
+          player.capturedBy=o;
+          setMessage('Von einer Amöbe eingeschlossen!',1700);
+        }
+      }
+      else if(o.kind==='zone'){
+        o.phase += dt;
+        if(d<o.r){
+          const protectedFromZone =
+            (o.zoneType==='acid' && player.resist.has('acid')) ||
+            (o.zoneType!=='acid' && player.resist.has(o.zoneType));
+
+          if(!protectedFromZone){
+            // Unangepasste Bakterien überleben in einer Gefahrenzone ungefähr 1 Sekunde.
+            // Direkter Schaden statt damageLife(), damit die Unverwundbarkeitszeit
+            // den kontinuierlichen Zonenschaden nicht abschwächt.
+            player.life -= 110 * dt;
+            player.wall -= 70 * dt;
+
+            if(player.wall<=0){
+              player.wall=0;
+              respawn('Die Gefahrenzone zerstört die Zellwand – Zelle lysiert.');return;
+            } else if(player.life<=0){
+              player.life=0;
+              respawn('Die Gefahrenzone ist ohne passende Resistenz tödlich.');return;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for(let i=enemyProjectiles.length-1;i>=0;i--){
+    const p=enemyProjectiles[i];
+    p.life-=dt;
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    if(Math.hypot(p.x-player.x,p.y-player.y)<player.r+p.r){
+      damageLife(15);
+      if(paused) return;
+      enemyProjectiles.splice(i,1);
+      setMessage('Von einem Giftgeschoss getroffen!',900);
+      continue;
+    }
+    if(p.life<=0) enemyProjectiles.splice(i,1);
+  }
+
+  for(const mine of mines){
+    mine.t+=dt;
+    for(const arr of chunks.values()) for(const o of arr){
+      if(!o.alive) continue;
+      if((o.kind==='phage' || o.kind==='aggressive') && Math.hypot(o.x-mine.x,o.y-mine.y)<58*mine.power){
+        o.alive=false;
+        for(let k=0;k<10;k++) particles.push({kind:'burst',x:o.x,y:o.y,vx:rand(-45,45),vy:rand(-45,45),life:0.6,color:'#ff4bd8'});
+        mine.life=0;
+      }
+    }
+  }
+  for(let i=mines.length-1;i>=0;i--){
+    mines[i].life-=dt;
+    if(mines[i].life<=0) mines.splice(i,1);
+  }
+
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.life-=dt;
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.94; p.vy*=0.94;
+    if(p.life<=0) particles.splice(i,1);
+  }
+
+  updateHUD();
+}
+
+function w2s(x,y){ return {x:x-player.x+W/2,y:y-player.y+H/2}; }
+
+function drawBackground(){
+  ctx.fillStyle='#0a1c27'; ctx.fillRect(0,0,W,H);
+  if(mission.state==='final' && mission.finalActive){
+    ctx.fillStyle=`rgba(${zoneColor(mission.phases[mission.finalPhase].key)},.12)`;
+    ctx.fillRect(0,0,W,H);
+  }
+  ctx.globalAlpha=.28;
+  for(let i=0;i<110;i++){
+    const sx=((i*193 + Math.floor(player.x*.05))%(W+110))-55;
+    const sy=((i*109 + Math.floor(player.y*.04))%(H+110))-55;
+    ctx.fillStyle=i%4===0?'#74d0d6':'#6d8d99';
+    ctx.beginPath(); ctx.arc(sx,sy,(i%3)+1,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  const step=300;
+  const ox=(((-player.x)%step)+step)%step, oy=(((-player.y)%step)+step)%step;
+  ctx.strokeStyle='rgba(150,210,225,.05)'; ctx.lineWidth=1;
+  for(let x=ox;x<W;x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=oy;y<H;y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+}
+function drawZone(o){
+  const s=w2s(o.x,o.y);
+  const base=zoneColor(o.zoneType);
+  const rr=o.r + Math.sin(o.phase*1.8)*4;
+  const grad=ctx.createRadialGradient(s.x,s.y,10,s.x,s.y,rr);
+  grad.addColorStop(0,`rgba(${base},0.08)`);
+  grad.addColorStop(1,`rgba(${base},0.24)`);
+  ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(s.x,s.y,rr,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle=`rgba(${base},0.65)`; ctx.lineWidth=3; ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.82)'; ctx.font='700 12px system-ui'; ctx.textAlign='center';
+  const label=resLabel(o.zoneType);
+  ctx.fillText(label,s.x,s.y-o.r+18);
+}
+function drawFlagellum(x,y,a,color,len=56,wob=0){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-14,0);
+  for(let i=0;i<5;i++) ctx.quadraticCurveTo(-28-i*11,(i%2?10:-10)+Math.sin(wob+i)*2,-42-i*13,Math.sin(wob+i*1.5)*4);
+  ctx.stroke(); ctx.restore();
+}
+function drawBacteriumBody(x,y,w,h,a,fillMain,fillHighlight){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  const grd=ctx.createLinearGradient(-w/2,-h/2,w/2,h/2);
+  grd.addColorStop(0,fillMain); grd.addColorStop(.55,fillHighlight); grd.addColorStop(1,fillMain);
+  ctx.fillStyle=grd; ctx.strokeStyle='rgba(255,255,255,.45)'; ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(-w/2+h/2,-h/2); ctx.lineTo(w/2-h/2,-h/2); ctx.quadraticCurveTo(w/2,-h/2,w/2,0);
+  ctx.quadraticCurveTo(w/2,h/2,w/2-h/2,h/2); ctx.lineTo(-w/2+h/2,h/2);
+  ctx.quadraticCurveTo(-w/2,h/2,-w/2,0); ctx.quadraticCurveTo(-w/2,-h/2,-w/2+h/2,-h/2);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.10)'; ctx.beginPath(); ctx.ellipse(-4,-3,w*.28,h*.18,-0.25,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.14)'; ctx.beginPath(); ctx.ellipse(10,4,w*.22,h*.11,0.2,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function drawRingOnBody(x,y,a,ox,oy,r,color){
+  // Sehr kleine Tochterzellen entstehen am Ende der Teilungsanimation.
+  // Canvas wirft bei negativen Radien einen Fehler; deshalb Radien begrenzen.
+  const outer=Math.max(0,r);
+  const inner=Math.max(0,r-4);
+  if(outer<0.35) return;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.strokeStyle=color; ctx.lineWidth=Math.max(0.8,Math.min(2.2,outer*0.28));
+  ctx.beginPath(); ctx.arc(ox,oy,outer,0,Math.PI*2); ctx.stroke();
+  if(inner>0.35){ ctx.beginPath(); ctx.arc(ox,oy,inner,0,Math.PI*2); ctx.stroke(); }
+  ctx.restore();
+}
+function drawBacterium(o, kind='neutral'){
+  const s=w2s(o.x,o.y);
+  const a=o.dir||0;
+
+  if(kind==='neutral' && o.zoneAdapted){
+    const col=o.zoneAdapted==='beta'?'#ff4fab':o.zoneAdapted==='tet'?'#cf54ff':o.zoneAdapted==='amg'?'#ff6559':'#ffa546';
+    ctx.save();
+    ctx.globalAlpha=0.32;
+    ctx.strokeStyle=col;
+    ctx.lineWidth=6;
+    ctx.beginPath();
+    ctx.ellipse(s.x,s.y,35,25,a,0,Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  const wob=performance.now()*0.004+(o.phase||0);
+  let body1='#66c949', body2='#8be66d', tail='rgba(151,231,113,.78)';
+  if(kind==='aggressive'){ body1='#d46f33'; body2='#ff9c57'; tail='rgba(255,180,120,.85)'; }
+  drawFlagellum(s.x,s.y,a,tail,56,wob);
+  drawBacteriumBody(s.x,s.y,56,32,a,body1,body2);
+  drawRingOnBody(s.x,s.y,a,-12,0,10,'#e74646');
+  if(kind==='neutral') drawRingOnBody(s.x,s.y,a,14,0,7,rarityColor(o.plasmid.rarity));
+  if(kind==='aggressive'){
+    ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(a); ctx.fillStyle='rgba(255,0,60,.35)';
+    ctx.beginPath(); ctx.arc(14,0,6,0,Math.PI*2); ctx.fill(); ctx.restore();
+  }
+}
+function drawPlayer(){
+  const x=W/2,y=H/2,a=player.angle,wob=performance.now()*0.004;
+
+  function drawSingleCell(cx,cy,widthScale=1,heightScale=1,alpha=1){
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    drawFlagellum(cx,cy,a,'rgba(89,244,227,.88)',56*widthScale,wob);
+    if(player.mods.capsule>0){
+      ctx.save();
+      ctx.translate(cx,cy); ctx.rotate(a);
+      ctx.strokeStyle='rgba(115,229,255,.35)'; ctx.lineWidth=6;
+      const halfW=31*widthScale, halfH=18*heightScale;
+      ctx.beginPath();
+      ctx.moveTo(-halfW+11,-halfH); ctx.lineTo(halfW-11,-halfH);
+      ctx.quadraticCurveTo(halfW,-halfH,halfW,0);
+      ctx.quadraticCurveTo(halfW,halfH,halfW-11,halfH);
+      ctx.lineTo(-halfW+11,halfH);
+      ctx.quadraticCurveTo(-halfW,halfH,-halfW,0);
+      ctx.quadraticCurveTo(-halfW,-halfH,-halfW+11,-halfH);
+      ctx.stroke();
+      ctx.restore();
+    }
+    drawBacteriumBody(cx,cy,56*widthScale,32*heightScale,a,'#2dbaa9','#59dccb');
+    drawRingOnBody(cx,cy,a,-12*widthScale,0,10*Math.min(widthScale,heightScale),'#e74646');
+    ctx.restore();
+  }
+
+  if(player.dividing){
+    const total=player.divisionDuration;
+    const prog=clamp(1 - player.divisionTimer/total, 0, 1);
+
+    // Phase 1: Einschnürung
+    if(prog < 0.35){
+      const t=prog/0.35;
+      const widthScale=1 - 0.10*t;
+      const heightScale=1;
+      drawSingleCell(x,y,widthScale,heightScale,1);
+
+      ctx.save();
+      ctx.translate(x,y); ctx.rotate(a);
+      ctx.strokeStyle='rgba(255,255,255,.75)';
+      ctx.lineWidth=3;
+      const pinch=4 + 10*t;
+      ctx.beginPath();
+      ctx.moveTo(0,-14);
+      ctx.quadraticCurveTo(-pinch,0,0,14);
+      ctx.moveTo(0,-14);
+      ctx.quadraticCurveTo(pinch,0,0,14);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Phase 2: Trennung in zwei Tochterzellen
+    else if(prog < 0.72){
+      const t=(prog-0.35)/0.37;
+      const sep=30*t;
+      const scale=0.92 - 0.18*t;
+      drawSingleCell(x-Math.cos(a)*sep, y-Math.sin(a)*sep, scale, 0.95, 1);
+      drawSingleCell(x+Math.cos(a)*sep, y+Math.sin(a)*sep, scale, 0.95, 1);
+    }
+    // Phase 3: eine Tochterzelle bleibt, wächst wieder auf Normalgröße
+    else {
+      const t=(prog-0.72)/0.28;
+      const sep=22*(1-t);
+      const scale=0.74 + 0.26*t;
+      drawSingleCell(x-Math.cos(a)*sep, y-Math.sin(a)*sep, scale, scale, 1);
+      drawSingleCell(x+Math.cos(a)*(sep+10), y+Math.sin(a)*(sep+10), 0.58*(1-t), 0.58*(1-t), 0.55*(1-t));
+
+      // leichter Wachstumsschein
+      ctx.save();
+      ctx.globalAlpha=0.18 + 0.18*Math.sin(t*Math.PI);
+      ctx.strokeStyle='rgba(255,255,255,.7)';
+      ctx.lineWidth=4;
+      ctx.beginPath();
+      ctx.ellipse(x-Math.cos(a)*sep, y-Math.sin(a)*sep, 30*scale, 18*scale, a, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    return;
+  }
+
+  drawSingleCell(x,y,1,1,1);
+}
+function drawFood(o){
+  const s=w2s(o.x,o.y), r=o.r+Math.sin(o.pulse*2)*1.2;
+  const grad=ctx.createRadialGradient(s.x-2,s.y-2,2,s.x,s.y,r+5);
+  grad.addColorStop(0,'#fff4a0'); grad.addColorStop(1,'#e0a400');
+  ctx.fillStyle=grad; ctx.strokeStyle='rgba(255,250,190,.85)'; ctx.lineWidth=2;
+  ctx.beginPath();
+  for(let i=0;i<6;i++){ const a=i*Math.PI/3-Math.PI/6, x=s.x+Math.cos(a)*r, y=s.y+Math.sin(a)*r; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+}
+function drawWallMaterial(o){
+  const s=w2s(o.x,o.y), r=o.r+Math.sin(o.pulse*2)*1.2;
+  const grad=ctx.createLinearGradient(s.x-r,s.y-r,s.x+r,s.y+r);
+  grad.addColorStop(0,'#d4f7ff'); grad.addColorStop(1,'#2ea6ef');
+  ctx.fillStyle=grad; ctx.strokeStyle='rgba(230,251,255,.85)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(s.x-r,s.y-r,r*2,r*2,5); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s.x-r+3,s.y); ctx.lineTo(s.x+r-3,s.y); ctx.moveTo(s.x,s.y-r+3); ctx.lineTo(s.x,s.y+r-3); ctx.stroke();
+}
+function drawPhage(o){
+  const s=w2s(o.x,o.y); ctx.save(); ctx.globalAlpha=o.mode==='chase'?1:0.8; ctx.translate(s.x,s.y);
+  ctx.strokeStyle='#e2d3ff'; ctx.fillStyle=o.mode==='chase'?'#c28cff':'#aa7cff'; ctx.lineWidth=2;
+  ctx.beginPath();
+  for(let i=0;i<6;i++){ const a=i*Math.PI/3, x=Math.cos(a)*10, y=Math.sin(a)*10; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,10); ctx.lineTo(0,24); ctx.stroke();
+  for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(0,22); ctx.lineTo(i*9,32); ctx.stroke(); }
+  ctx.restore();
+}
+function drawAmoeba(o){
+  const s=w2s(o.x,o.y), r=o.r;
+  ctx.save(); ctx.translate(s.x,s.y);
+  const grad=ctx.createRadialGradient(-r*.15,-r*.2,10,0,0,r*1.1);
+  grad.addColorStop(0,'rgba(255,192,140,.95)'); grad.addColorStop(1,'rgba(230,110,70,.92)');
+  ctx.fillStyle=grad; ctx.strokeStyle='rgba(255,230,210,.7)'; ctx.lineWidth=2;
+  ctx.beginPath();
+  for(let i=0;i<26;i++){
+    const a=i/26*Math.PI*2;
+    const rr=r*(0.84 + 0.15*Math.sin(a*3 + o.phase*2.1) + 0.08*Math.sin(a*7 + o.phase*1.1));
+    const x=Math.cos(a)*rr, y=Math.sin(a)*rr;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.18)'; ctx.beginPath(); ctx.ellipse(-r*0.08,-r*0.12,r*0.36,r*0.23,-0.25,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(r*0.12,r*0.03,r*0.15,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-r*0.24,r*0.18,r*0.10,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function drawMine(m){
+  const s=w2s(m.x,m.y), pulse=9+Math.sin(m.t*9)*2;
+  ctx.save(); ctx.translate(s.x,s.y); ctx.fillStyle='#ff4bd8'; ctx.strokeStyle='#ffd0f5'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(0,0,pulse,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.restore();
+}
+function drawEnemyProjectile(p){
+  const s=w2s(p.x,p.y);
+  ctx.fillStyle='#d645ff'; ctx.strokeStyle='#ffd1ff'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(s.x,s.y,p.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s.x-p.r-3,s.y); ctx.lineTo(s.x+p.r+3,s.y); ctx.stroke();
+}
+function drawParticles(){
+  for(const p of particles){
+    const s=w2s(p.x,p.y);
+    ctx.globalAlpha=clamp(p.life/0.6,0,1); ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(s.x,s.y,3,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+  }
+}
+function drawOriginPointer(){
+  const odx=-player.x, ody=-player.y, od=Math.hypot(odx,ody);
+  if(od<450) return;
+  const a=Math.atan2(ody,odx), r=Math.min(W,H)*0.38;
+  const sx=W/2+Math.cos(a)*r, sy=H/2+Math.sin(a)*r;
+  ctx.save(); ctx.translate(sx,sy); ctx.rotate(a); ctx.fillStyle='rgba(255,255,255,.55)';
+  ctx.beginPath(); ctx.moveTo(12,0); ctx.lineTo(-7,-6); ctx.lineTo(-7,6); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function directionMarkerPosition(target,radius){
+  const dx=target.x-player.x,dy=target.y-player.y;
+  const distance=Math.hypot(dx,dy);
+  if(distance<1) return null;
+  const angle=Math.atan2(dy,dx);
+  // Bei nahen Zielen bis zum tatsächlichen Zielpunkt nach innen wandern.
+  const reach=Math.min(radius,distance);
+  return {x:W/2+Math.cos(angle)*reach,y:H/2+Math.sin(angle)*reach,angle};
+}
+function drawDirectionMarker(target,color,label,radius,large=false){
+  const p=directionMarkerPosition(target,radius);
+  if(!p) return;
+  const size=large?23:12;
+  ctx.save();
+  // Die Pfeilspitze dreht sich, die Beschriftung bleibt aufrecht.
+  ctx.translate(p.x,p.y);ctx.rotate(p.angle);
+  ctx.fillStyle=`rgb(${color})`;ctx.strokeStyle='#06131c';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(size+(large?23:13),0);
+  ctx.lineTo(size+2,large?-12:-7);ctx.lineTo(size+2,large?12:7);
+  ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.restore();
+  ctx.save();
+  if(large){
+    ctx.shadowColor=`rgb(${color})`;ctx.shadowBlur=18;
+    ctx.beginPath();ctx.arc(p.x,p.y,size+6,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(${color},.5)`;ctx.lineWidth=3;ctx.stroke();
+  }
+  ctx.beginPath();ctx.arc(p.x,p.y,size,0,Math.PI*2);
+  ctx.fillStyle='rgba(3,12,20,.94)';ctx.fill();
+  ctx.strokeStyle=`rgb(${color})`;ctx.lineWidth=large?3:2;ctx.stroke();
+  ctx.shadowBlur=0;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=`rgb(${color})`;ctx.font=large?'900 13px system-ui':'800 11px system-ui';
+  ctx.fillText(label,p.x,p.y);
+  if(large){
+    const caption=`Selektionsfeld · ${Math.round(Math.hypot(target.x-player.x,target.y-player.y)/10)} µm`;
+    ctx.font='800 13px system-ui';
+    const width=ctx.measureText(caption).width+22;
+    ctx.fillStyle='rgba(3,12,20,.94)';ctx.fillRect(p.x-width/2,p.y+34,width,26);
+    ctx.fillStyle='#c5fff6';ctx.fillText(caption,p.x,p.y+47);
+  }
+  ctx.restore();
+}
+function drawNavigationMarkers(){
+  if(!running || mission.won) return;
+  const nearest=nearestHazardZones();
+  // Verschiedene Radien halten auch nahezu gleich gerichtete Marken getrennt.
+  ['beta','tet','amg','acid'].forEach((key,index)=>{
+    if(nearest[key]) drawDirectionMarker(nearest[key],zoneColor(key),['A','B','C','pH'][index],98+index*34);
+  });
+  if(mission.finalZone && (mission.state==='reachFinal' || mission.state==='final')){
+    drawDirectionMarker(mission.finalZone,'123,255,220','ZIEL',266,true);
+  }
+}
+function drawFinalZone(){
+  if(!mission.finalZone)return;
+  const s=w2s(mission.finalZone.x,mission.finalZone.y),r=mission.finalZone.r;
+  const active=mission.state==='final' && mission.finalActive;
+  const key=active ? mission.phases[mission.finalPhase].key : null;
+  const color=key ? zoneColor(key) : '120,235,255';
+  ctx.save();
+  const g=ctx.createRadialGradient(s.x,s.y,20,s.x,s.y,r);
+  g.addColorStop(0,`rgba(${color},.08)`);g.addColorStop(1,`rgba(${color},.30)`);
+  ctx.fillStyle=g;ctx.strokeStyle=`rgba(${color},.95)`;ctx.lineWidth=4;
+  ctx.beginPath();ctx.arc(s.x,s.y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='800 14px system-ui';ctx.textAlign='center';
+  ctx.fillText(key ? resLabel(key) : 'SELEKTIONSGEBIET',s.x,s.y-r+22);
+  ctx.restore();
+}
+function render(){
+  drawBackground();
+  const pcx=Math.floor(player.x/CHUNK), pcy=Math.floor(player.y/CHUNK);
+
+  for(let cx=pcx-2;cx<=pcx+2;cx++) for(let cy=pcy-2;cy<=pcy+2;cy++){
+    const arr=chunks.get(cx+','+cy); if(!arr) continue;
+    for(const o of arr){ if(o.alive&&o.kind==='zone') drawZone(o); }
+  }
+  for(let cx=pcx-2;cx<=pcx+2;cx++) for(let cy=pcy-2;cy<=pcy+2;cy++){
+    const arr=chunks.get(cx+','+cy); if(!arr) continue;
+    for(const o of arr){
+      if(!o.alive || o.kind==='zone') continue;
+      const s=w2s(o.x,o.y);
+      if(s.x<-110||s.y<-110||s.x>W+110||s.y>H+110) continue;
+      if(o.kind==='food') drawFood(o);
+      else if(o.kind==='wallmat') drawWallMaterial(o);
+      else if(o.kind==='bacterium') drawBacterium(o,'neutral');
+      else if(o.kind==='aggressive') drawBacterium(o,'aggressive');
+      else if(o.kind==='phage') drawPhage(o);
+      else if(o.kind==='amoeba') drawAmoeba(o);
+    }
+  }
+  for(const p of enemyProjectiles) drawEnemyProjectile(p);
+  for(const m of mines) drawMine(m);
+  drawParticles();
+  drawPlayer();
+
+
+  if(player.capturedBy){
+    ctx.strokeStyle='rgba(255,180,120,.7)'; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.arc(W/2,H/2,44,0,Math.PI*2); ctx.stroke();
+  }
+
+  const b=nearbyBacterium();
+  if(b && !paused && !player.capturedBy && !player.dividing){
+    const s=w2s(b.x,b.y);
+    ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=2; ctx.setLineDash([6,5]);
+    ctx.beginPath(); ctx.arc(s.x,s.y,33,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='rgba(0,0,0,.65)'; ctx.fillRect(s.x-63,s.y-50,126,22);
+    ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font='700 12px system-ui';
+    ctx.fillText('A: KONJUGIEREN',s.x,s.y-35);
+  }
+
+  drawFinalZone();
+  drawOriginPointer();
+  drawNavigationMarkers();
+}
+
+let last=performance.now();
+function loop(t){
+  const elapsed=Math.max(0,(t-last)/1000); last=t;
+  const dt=Math.min(0.033,elapsed);
+  if(animState){
+    if(worldNeedsRedraw){ render(); worldNeedsRedraw=false; }
+    drawConjugationAnimation(Math.min(0.1,elapsed));
+  }else{
+    if(running) update(dt);
+    render();
+    worldNeedsRedraw=false;
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+let selectedMode='simple';
+function refreshModeButtons(){
+  const s=document.getElementById('simpleMode'),w=document.getElementById('scienceMode');
+  if(selectedMode==='simple'){
+    s.style.borderColor='#5bc0ff';s.style.background='#183549';w.style.borderColor='rgba(255,255,255,.22)';w.style.background='#142532';
+    document.getElementById('modeInfo').innerHTML='<strong>Simple:</strong> Plasmide bleiben sichtbar, Gene heißen z. B. „Resistenz Antibiotikum A“, „Zellwand +“ oder „Bewegung ++“.';
+  }else{
+    w.style.borderColor='#ffd554';w.style.background='#3a3518';s.style.borderColor='rgba(255,255,255,.22)';s.style.background='#142532';
+    document.getElementById('modeInfo').innerHTML='<strong>Wissenschaftlich:</strong> Es werden Fachbegriffe wie β-Lactamase, Tetracyclin-Effluxpumpe und Kapselbildung verwendet.';
+  }
+}
+document.getElementById('simpleMode').onclick=()=>{selectedMode='simple';refreshModeButtons();};
+document.getElementById('scienceMode').onclick=()=>{selectedMode='scientific';refreshModeButtons();};
+refreshModeButtons();
+document.getElementById('startBtn').onclick=()=>{player.mode=selectedMode;document.getElementById('start').style.display='none';document.getElementById('startBtn').blur();clearMovement();running=true;paused=false;updateHUD();setMessage('Finde die drei Resistenz-Plasmide in den passenden Gefahrenzonen.',2800);};
+document.getElementById('restartBtn').onclick=()=>location.reload();
+
+ensureWorld(); updateHUD();
+})();
+</script>
+</body>
+</html>
