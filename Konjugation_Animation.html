@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Flüssige Animation der bakteriellen Konjugation mit Pilus, Übertragung eines einzelnen Plasmidstrangs und Ergänzung beider DNA-Stränge. Offline nutzbar.">
+  <meta name="theme-color" content="#f7f9f3">
+  <title>Konjugation – Plasmidübertragung</title>
+  <style>
+    :root {color-scheme:light; font-family:Arial,Helvetica,sans-serif; color:#20382e; background:#f7f9f3; --ink:#20382e; --muted:#64736a; --green:#557a40; --border:#dce3d5; --panel:#fffefa; --old:#d63d69; --new:#d89728; --chromosome:#315c72;}
+    * {box-sizing:border-box;}
+    body {margin:0; min-width:320px; -webkit-tap-highlight-color:transparent;}
+    button,input,select {font:inherit;}
+    button {cursor:pointer;}
+    button,select,input {touch-action:manipulation;}
+    button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible {outline:3px solid #9bbd7d; outline-offset:3px;}
+    .app {max-width:1320px; height:100vh; height:100dvh; min-height:560px; max-height:1000px; margin:auto; padding:26px 34px 22px; display:flex; flex-direction:column;}
+    header {display:flex; align-items:center; justify-content:space-between; gap:16px; flex:none;}
+    h1 {margin:0; font-size:clamp(25px,3.1vw,36px); letter-spacing:-1px; font-weight:600;}
+    .subtitle {margin:5px 0 0; color:var(--muted); font-size:15px;}
+    .tools {display:flex; align-items:center; gap:10px;}
+    .label-toggle {display:flex; align-items:center; gap:8px; color:var(--muted); font-size:14px; cursor:pointer; min-height:44px;}
+    input[type=checkbox] {width:18px; height:18px; accent-color:var(--green);}
+    .icon-button {width:44px; height:44px; border:1px solid var(--border); border-radius:12px; color:var(--ink); background:transparent; display:inline-flex; align-items:center; justify-content:center;}
+    .icon-button:hover {background:#eaf0e3;}
+    svg {width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:none;}
+    .scene {position:relative; flex:1 1 auto; min-height:200px; margin:4px -14px 0;}
+    canvas {width:100%; height:100%; display:block; position:absolute; inset:0;}
+    .caption {font-size:clamp(16px,1.8vw,20px); text-align:center; line-height:1.45; min-height:57px; margin:0 auto 8px; max-width:950px; display:flex; align-items:center; justify-content:center;}
+    .phase-list {display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:0 0 18px;}
+    .phase {display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:12px; background:#edf1e8; color:var(--muted); min-height:44px; padding:10px 8px; font-size:14px;}
+    .phase[aria-current=step] {background:#e0e9d7; color:#294523;}
+    .phase:hover {background:#e4ebdc;}
+    .phase .number {font-size:12px; opacity:.8;}
+    .legend {display:flex; justify-content:center; flex-wrap:wrap; align-items:center; gap:10px 28px; color:var(--muted); font-size:13px; margin:0 0 20px; min-height:17px;}
+    .legend[hidden] {display:flex; visibility:hidden;}
+    .legend span {display:inline-flex; align-items:center; gap:8px; white-space:nowrap;}
+    .swatch {display:block; width:22px; height:3px; border-radius:4px; background:var(--old);}
+    .swatch.chromosome {background:var(--chromosome);}
+    .swatch.new {background:var(--new);}
+    .player {background:var(--panel); border:1px solid var(--border); border-radius:18px; padding:13px 17px; display:flex; gap:15px; align-items:center; flex:none;}
+    .play {background:var(--ink); color:#fffefa; border:0; border-radius:11px; min-width:114px; height:44px; display:flex; align-items:center; justify-content:center; gap:9px; font-size:14px;}
+    .play:hover {background:#35533f;}
+    .play svg {width:17px; height:17px;}
+    .scrub {flex:1; min-width:60px; display:flex; align-items:center; gap:12px;}
+    input[type=range] {width:100%; min-width:50px; height:28px; margin:0; accent-color:var(--green); cursor:ew-resize; touch-action:pan-y;}
+    .time {font-size:12px; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums;}
+    .speed-wrap {display:flex; align-items:center; gap:6px; color:var(--muted); font-size:13px;}
+    select {border:1px solid var(--border); border-radius:9px; background:transparent; color:var(--ink); padding:7px 4px 7px 8px; min-height:40px; font-size:14px;}
+    .loop[aria-pressed=true] {background:#e0e9d7; border-color:#9ab485; color:#305020;}
+    .source {display:flex; justify-content:space-between; margin-top:9px; font-size:11px; color:var(--muted); gap:12px;}
+    .source a {color:inherit; text-underline-offset:2px;}
+    .sr-only {position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap;}
+    .app:fullscreen {max-width:none; max-height:none; height:100vh; background:#f7f9f3; padding:24px 4vw;}
+    @media (max-width:800px) {
+      .app {padding:20px 22px 15px;}
+      .legend {gap:8px 18px; font-size:12px; margin-bottom:14px;}
+      .phase-list {gap:5px; margin-bottom:14px;}
+      .phase {font-size:12px; padding:10px 3px; gap:5px;}
+      .player {gap:9px; padding:10px;}
+      .play {min-width:94px; font-size:13px;}
+      .speed-wrap>span {display:none;}
+      .source {font-size:10px;}
+      .caption {min-height:57px; margin-bottom:5px;}
+    }
+    @media (max-width:560px) {
+      .app {height:auto; min-height:100dvh; padding:18px 14px;}
+      header {align-items:flex-start; gap:8px;}
+      .subtitle {font-size:13px;}
+      .tools {gap:5px;}
+      .label-toggle {font-size:12px; gap:4px;}
+      .label-toggle input {width:16px; height:16px;}
+      .tools .icon-button {display:none;}
+      .scene {height:260px; flex:none; margin:0 -12px;}
+      .caption {min-height:78px;}
+      .phase .number {display:none;}
+      .phase {font-size:10px; min-height:40px; border-radius:8px;}
+      .legend {gap:9px; font-size:11px; margin-bottom:16px;}
+      .legend span:first-child {flex-basis:100%; justify-content:center;}
+      .player {flex-wrap:wrap; gap:9px;}
+      .scrub {order:3; flex-basis:100%;}
+      .play {flex:1;}
+      .speed-wrap {margin-left:auto;}
+      .player .icon-button {width:40px; height:40px;}
+      .source span {display:none;}
+    }
+    @media (max-height:650px) and (min-width:561px) {
+      .app {padding-top:14px; padding-bottom:12px; min-height:460px;}
+      .scene {min-height:150px;}
+      .subtitle {display:none;}
+      .caption {min-height:38px; font-size:16px;}
+      .phase-list {margin-bottom:10px;}
+      .phase {min-height:36px; padding:6px;}
+      .legend {margin-bottom:10px;}
+      .player {padding:8px 12px;}
+      .source {margin-top:6px;}
+    }
+  </style>
+</head>
+<body>
+<main class="app" id="app">
+  <header>
+    <div><h1>Konjugation</h1><p class="subtitle">Übertragung eines Plasmids</p></div>
+    <div class="tools">
+      <label class="label-toggle"><input type="checkbox" id="labels" checked>Beschriftungen</label>
+      <button class="icon-button" id="fullscreen" type="button" title="Vollbild" aria-label="Vollbild einschalten"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5"/></svg></button>
+    </div>
+  </header>
+  <div class="scene" id="scene">
+    <canvas id="animation" role="img" aria-label="Zwei Bakterienzellen: Ein Pilus stellt den Kontakt her. Ein einzelner DNA-Strang wird aus dem Plasmid der Spenderzelle in die Empfängerzelle übertragen. In beiden Zellen werden die fehlenden Stränge ergänzt."></canvas>
+  </div>
+  <p class="caption" id="caption" aria-live="polite"></p>
+  <nav class="phase-list" aria-label="Animationsphasen" id="phases"></nav>
+  <div class="legend" id="legend" aria-label="Farblegende">
+    <span><i class="swatch chromosome" aria-hidden="true"></i>Bakterienchromosom</span>
+    <span><i class="swatch" aria-hidden="true"></i>ursprünglicher DNA-Strang</span>
+    <span><i class="swatch new" aria-hidden="true"></i>neuer DNA-Strang</span>
+  </div>
+  <div class="player" role="group" aria-label="Animation steuern">
+    <button class="play" id="play" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" id="play-icon"></svg><span id="play-text">Pause</span></button>
+    <button class="icon-button" id="restart" type="button" title="Von vorne" aria-label="Animation von vorne starten"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 4v7h7"/></svg></button>
+    <div class="scrub"><label for="timeline" class="sr-only">Animationszeit</label><input type="range" id="timeline" min="0" max="36" value="0" step="0.01" aria-valuetext="0 Sekunden"><span class="time" id="time">0:00 / 0:36</span></div>
+    <label class="speed-wrap"><span>Tempo</span><select id="speed" aria-label="Abspielgeschwindigkeit"><option value="0.5">0,5 ×</option><option value="1" selected>1 ×</option><option value="1.5">1,5 ×</option><option value="2">2 ×</option></select></label>
+    <button class="icon-button loop" id="loop" type="button" aria-label="Wiederholen" aria-pressed="false" title="Wiederholen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 2l4 4-4 4M3 11V8a2 2 0 0 1 2-2h16M7 22l-4-4 4-4m14-1v3a2 2 0 0 1-2 2H3"/></svg></button>
+  </div>
+  <div class="source"><span>Schematische Darstellung · Ablauf und Größen vereinfacht</span><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9849209/" target="_blank" rel="noopener noreferrer">Fachliche Grundlage: Couturier et al. (2023)</a></div>
+</main>
+<script>
+/* Educational schematic of F-plasmid conjugation. All animation state is a pure function of time.
+   Mechanism: Couturier et al., Nature Communications 14, 294 (2023).
+   https://doi.org/10.1038/s41467-023-35978-3 */
+(function (global) {
+  'use strict';
+  const DURATION = 36;
+  const TAU = Math.PI * 2;
+  const C = {
+    background: '#f7f9f3', ink: '#20382e', muted: '#64736a', line: '#cdd7c9',
+    greenEdge: '#6c9548', greenLight: '#e4f2bc', green: '#c5e49b', greenDark: '#abc97d',
+    chromosome: '#315c72', chromosomeHighlight: '#7596a1', old: '#d63d69', fresh: '#d89728',
+    pilus: '#6c8b62', channel: '#e2efc9', pair: '#b27967'
+  };
+  const PHASES = [
+    {start: 0, seek: 3, title: 'Kontakt', text: 'Der Pilus der Spenderzelle stellt den Kontakt her.'},
+    {start: 6, seek: 9, title: 'Annäherung', text: 'Der Pilus verkürzt sich und bringt die Zellen zusammen.'},
+    {start: 12, seek: 19, title: 'Übertragung', text: 'Ein Plasmidstrang wird übertragen und in der Spenderzelle ersetzt.'},
+    {start: 25.2, seek: 28, title: 'Ergänzung', text: 'In der Empfängerzelle wird der fehlende DNA-Strang ergänzt.'},
+    {start: 30.6, seek: 34.5, title: 'Trennung', text: 'Beide Zellen besitzen jetzt ein vollständiges Plasmid.'}
+  ];
+  const clamp = (n, a = 0, b = 1) => Math.min(b, Math.max(a, n));
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const smooth = u => {u = clamp(u); return u * u * u * (u * (u * 6 - 15) + 10);};
+  const between = (t, a, b) => clamp((t - a) / (b - a));
+  const fade = (t, a, b, c, d) => smooth(between(t, a, b)) * (1 - smooth(between(t, c, d)));
+
+  function state(time) {
+    const t = clamp(time, 0, DURATION);
+    const approach = smooth(between(t, 6, 10.8));
+    const separate = smooth(between(t, 31.2, 34.8));
+    const together = approach * (1 - separate);
+    const commonBob = Math.sin(t * 0.65) * 1.1;
+    const donor = {x: lerp(290, 459, together), y: 250 + commonBob + (1 - together) * Math.sin(t * 0.73) * 1.4};
+    const recipient = {x: lerp(990, 821, together), y: 250 + commonBob + (1 - together) * Math.sin(t * 0.73 + 1.5) * 1.4};
+    const ringShift = 12 * smooth(between(t, 10.6, 12.5)) * (1 - separate);
+    const dp = {x: donor.x + 83 + ringShift, y: donor.y};
+    const rp = {x: recipient.x - 83, y: recipient.y};
+    const transfer = between(t, 13.6, 24.5);
+    const received = smooth(between(t, 14.3, 25.2));
+    const recipientCopy = smooth(between(t, 25.35, 30.25));
+    let phase = 0;
+    for (let i = 1; i < PHASES.length; i++) if (t >= PHASES[i].start) phase = i;
+    return {t, donor, recipient, dp, rp, together, transfer, received, recipientCopy, phase};
+  }
+
+  function seedRandom(seed) {
+    return () => {seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296;};
+  }
+  function makeRibosomes(seed) {
+    const rand = seedRandom(seed), points = [];
+    while (points.length < 48) {
+      const x = (rand() - .5) * 310, y = (rand() - .5) * 130;
+      const qx = Math.max(0, Math.abs(x) - 87);
+      if (qx * qx + y * y < 61 * 61) points.push([x, y, 1.6 + rand() * 1.4, rand() * TAU]);
+    }
+    return points;
+  }
+  const ribosomes = [makeRibosomes(214), makeRibosomes(831)];
+
+  function capsule(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  }
+  // A true stadium outline preserves the rounded poles without a rectangular-looking cap.
+  function cellOutline(ctx, inset = 0) {
+    const r = 83 - inset, half = 175 - inset, cy = 0;
+    ctx.beginPath();
+    ctx.moveTo(-half + r, cy - r); ctx.lineTo(half - r, cy - r);
+    ctx.arc(half - r, cy, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(-half + r, cy + r); ctx.arc(-half + r, cy, r, Math.PI / 2, Math.PI * 1.5);
+    ctx.closePath();
+  }
+  function chromosome(ctx, t, mirror) {
+    ctx.save(); ctx.translate(mirror ? 65 : -65, 0);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const path = () => {
+      ctx.beginPath();
+      for (let i = 0; i <= 390; i++) {
+        const a = i / 390 * TAU;
+        const x = 51 * Math.cos(3 * a + .42) + 15 * Math.sin(7 * a + .2);
+        const y = 28 * Math.sin(4 * a + .55) + 10 * Math.cos(9 * a);
+        const dx = 1.1 * Math.sin(a * 4 + t * .36), dy = .9 * Math.cos(a * 3 - t * .3);
+        if (!i) ctx.moveTo(x + dx, y + dy); else ctx.lineTo(x + dx, y + dy);
+      }
+      ctx.closePath();
+    };
+    path(); ctx.strokeStyle = '#d6e6bd'; ctx.lineWidth = 7; ctx.stroke();
+    path(); ctx.strokeStyle = C.chromosome; ctx.lineWidth = 3.4; ctx.stroke();
+    ctx.restore();
+  }
+  function cell(ctx, pose, index, t) {
+    ctx.save(); ctx.translate(pose.x, pose.y);
+    cellOutline(ctx);
+    ctx.shadowColor = '#536a3924'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 7;
+    const g = ctx.createLinearGradient(0, -83, 0, 83);
+    g.addColorStop(0, C.greenLight); g.addColorStop(.38, C.green); g.addColorStop(1, C.greenDark);
+    ctx.fillStyle = g; ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = C.greenEdge; ctx.lineWidth = 2.8; ctx.stroke();
+    cellOutline(ctx, 6); ctx.strokeStyle = '#eff8d7b0'; ctx.lineWidth = 1.8; ctx.stroke();
+    for (const [x, y, r, phase] of ribosomes[index]) {
+      ctx.beginPath(); ctx.arc(x + Math.sin(t * .22 + phase) * .6, y + Math.cos(t * .26 + phase) * .6, r, 0, TAU);
+      ctx.fillStyle = '#6e965254'; ctx.fill();
+    }
+    chromosome(ctx, t + index * 5, index === 1);
+    ctx.restore();
+  }
+  function text(ctx, value, x, y, size = 22, color = C.ink, align = 'center', weight = 400) {
+    ctx.font = `${weight} ${size}px "DejaVu Sans", Arial, sans-serif`;
+    ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillText(value, x, y);
+  }
+  function line(ctx, points, color, width, alpha = 1) {
+    if (points.length < 2 || alpha <= 0) return;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); ctx.restore();
+  }
+  function arc(ctx, cx, cy, radius, from, to, color, width = 3.5, alpha = 1) {
+    if (to - from < .0001 || alpha < .001) return;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.beginPath(); ctx.arc(cx, cy, radius, from, to);
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.stroke(); ctx.restore();
+  }
+  function pairs(ctx, ring, progress, start, radiusOuter = 37, alpha = 1) {
+    if (progress <= 0) return;
+    ctx.save(); ctx.globalAlpha = alpha * .7; ctx.strokeStyle = C.pair; ctx.lineWidth = 1.45;
+    for (let i = 0; i < 18; i++) {
+      const fraction = (i + .5) / 18;
+      if (fraction > progress) continue;
+      const a = start + fraction * TAU;
+      ctx.beginPath(); ctx.moveTo(ring.x + Math.cos(a) * (radiusOuter - 6), ring.y + Math.sin(a) * (radiusOuter - 6));
+      ctx.lineTo(ring.x + Math.cos(a) * radiusOuter, ring.y + Math.sin(a) * radiusOuter); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function pilus(ctx, s) {
+    const extent = smooth(between(s.t, 1.4, 5.5));
+    const opacity = 1 - smooth(between(s.t, 10.65, 11.5));
+    if (extent <= 0 || opacity <= 0) return;
+    const ax = s.donor.x + 174, bx = s.recipient.x - 174;
+    const points = [];
+    for (let i = 0; i <= 90; i++) {
+      const u = i / 90 * extent;
+      const bend = Math.sin(u * Math.PI) * (18 * (1 - s.together) + 1.5);
+      points.push({x: lerp(ax, bx, u), y: lerp(s.donor.y, s.recipient.y, u) - bend});
+    }
+    line(ctx, points, '#819771', 9, opacity);
+    line(ctx, points.map(p => ({x: p.x, y: p.y - 1.8})), '#c7d5b7', 2.6, opacity);
+    // Small transverse marks give the pilus a filament structure.
+    ctx.save(); ctx.globalAlpha = opacity * .5; ctx.strokeStyle = '#506a48'; ctx.lineWidth = 1;
+    for (let i = 3; i < points.length - 1; i += 3) {
+      const p = points[i], n = points[i + 1], a = Math.atan2(n.y - p.y, n.x - p.x) + Math.PI / 2;
+      ctx.beginPath(); ctx.moveTo(p.x - Math.cos(a) * 3.4, p.y - Math.sin(a) * 3.4);
+      ctx.lineTo(p.x + Math.cos(a) * 3.4, p.y + Math.sin(a) * 3.4); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function channel(ctx, s) {
+    const opacity = fade(s.t, 10.65, 11.7, 30.6, 31.15);
+    if (opacity <= 0) return;
+    const ax = s.donor.x + 167, bx = s.recipient.x - 167, cy = (s.donor.y + s.recipient.y) / 2;
+    ctx.save(); ctx.globalAlpha = opacity;
+    capsule(ctx, ax, cy - 11, bx - ax, 22, 8); ctx.fillStyle = C.channel; ctx.fill();
+    ctx.lineWidth = 2.6; ctx.strokeStyle = C.greenEdge;
+    ctx.beginPath(); ctx.moveTo(ax, cy - 11); ctx.lineTo(bx, cy - 11); ctx.moveTo(ax, cy + 11); ctx.lineTo(bx, cy + 11); ctx.stroke();
+    ctx.restore();
+  }
+  function plasmids(ctx, s) {
+    const {dp, rp, transfer, received, recipientCopy, t} = s;
+    const inner = 31, outer = 37;
+    // One original strand stays in the donor. Its replacement partner grows as the other strand leaves.
+    arc(ctx, dp.x, dp.y, inner, 0, TAU, C.old);
+    const nick = Math.max(0, Math.sin(between(t, 12.2, 13.6) * Math.PI)) * .035;
+    arc(ctx, dp.x, dp.y, outer, nick, TAU * (1 - transfer) - nick, C.old);
+    arc(ctx, dp.x, dp.y, outer, TAU * (1 - transfer), TAU, C.fresh);
+    pairs(ctx, dp, 1, 0);
+    if (received > 0) {
+      arc(ctx, rp.x, rp.y, outer, Math.PI, Math.PI + received * TAU, C.old);
+      arc(ctx, rp.x, rp.y, inner, Math.PI, Math.PI + recipientCopy * TAU, C.fresh);
+      pairs(ctx, rp, recipientCopy, Math.PI);
+    }
+    // A continuous single DNA strand traverses the channel; the ring itself never travels across.
+    const head = smooth(between(t, 12.65, 14.3));
+    const tail = smooth(between(t, 24.45, 25.2));
+    if (head > tail + .00001) {
+      const a = {x: dp.x + outer, y: dp.y}, b = {x: rp.x - outer, y: rp.y};
+      const pts = [];
+      for (let i = 0; i <= 180; i++) {
+        const u = lerp(tail, head, i / 180);
+        // The strand is kept inside the narrow transfer channel at its centre.
+        const amplitude = 3.5 * Math.sin(u * Math.PI);
+        pts.push({x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) + amplitude * Math.sin(u * TAU * 2 - (t - 12.65) * 3)});
+      }
+      line(ctx, pts, C.old, 3.3);
+      // Lighter segments move only from donor to recipient, indicating the direction of transfer.
+      for (let k = 0; k < 3; k++) {
+        const u = (((t - 12.65) * .26 + k / 3) % 1 + 1) % 1;
+        if (u < tail + .02 || u > head - .02) continue;
+        const idx = Math.round((u - tail) / (head - tail) * 180);
+        line(ctx, pts.slice(Math.max(0, idx - 3), Math.min(pts.length, idx + 4)), '#ffb2be', 2.2);
+      }
+    }
+  }
+  function annotations(ctx, s) {
+    text(ctx, 'Spenderzelle', s.donor.x, 126, 24, C.ink, 'center', 500);
+    text(ctx, 'Empfängerzelle', s.recipient.x, 126, 24, C.ink, 'center', 500);
+    let alpha = fade(s.t, 2.7, 3.6, 10, 11);
+    if (alpha > .001) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      text(ctx, 'Pilus', 640, 170, 20, C.muted);
+      line(ctx, [{x:640, y:188}, {x:640, y:218}], C.muted, 1.2);
+      ctx.restore();
+    }
+    alpha = fade(s.t, 11, 11.8, 30.4, 31.1);
+    if (alpha > .001) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      text(ctx, 'Übertragungskanal', 640, 84, 19, C.muted);
+      line(ctx, [{x:640, y:104}, {x:640, y:224}], '#a6b19e', 1.2);
+      ctx.restore();
+    }
+    alpha = fade(s.t, 14.4, 15.2, 24.1, 25);
+    if (alpha > .001) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      line(ctx, [{x:640, y:273}, {x:640, y:353}], '#a6b19e', 1.2);
+      text(ctx, 'DNA-Einzelstrang', 640, 377, 20, C.muted);
+      ctx.restore();
+    }
+    alpha = smooth(between(s.t, 32.5, 34.5));
+    if (alpha > .001) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      for (const ring of [s.dp, s.rp]) {
+        line(ctx, [{x:ring.x, y:ring.y + 45}, {x:ring.x, y:359}], '#a6b19e', 1.2);
+        text(ctx, 'Plasmid', ring.x, 384, 20, C.muted);
+      }
+      ctx.restore();
+    }
+  }
+  function renderScene(ctx, time, options = {}) {
+    const s = state(time);
+    const w = options.width || 1280, h = options.height || 500;
+    ctx.save();
+    if (options.background !== false) {ctx.fillStyle = C.background; ctx.fillRect(0, 0, w, h);}
+    const scale = Math.min(w / 1280, h / 500);
+    ctx.translate((w - 1280 * scale) / 2, (h - 500 * scale) / 2); ctx.scale(scale, scale);
+    pilus(ctx, s);
+    cell(ctx, s.donor, 0, s.t); cell(ctx, s.recipient, 1, s.t);
+    channel(ctx, s); plasmids(ctx, s);
+    if (options.labels !== false) annotations(ctx, s);
+    ctx.restore();
+    return s;
+  }
+  function renderVideo(ctx, time) {
+    const s = state(time);
+    ctx.fillStyle = C.background; ctx.fillRect(0, 0, 1280, 720);
+    text(ctx, 'Konjugation', 60, 58, 36, C.ink, 'left', 500);
+    text(ctx, 'Übertragung eines Plasmids', 62, 96, 18, C.muted, 'left');
+    text(ctx, `${String(s.phase + 1).padStart(2, '0')} / 05`, 1218, 62, 18, C.muted, 'right');
+    ctx.save(); ctx.translate(0, 95); renderScene(ctx, time, {background: false}); ctx.restore();
+    text(ctx, PHASES[s.phase].text, 640, 555, 22, C.ink);
+    for (let i = 0; i < PHASES.length; i++) {
+      const x = 74 + i * 238;
+      ctx.fillStyle = i === s.phase ? '#e6eddf' : '#edf1e8';
+      capsule(ctx, x, 604, 220, 40, 12); ctx.fill();
+      text(ctx, `${i + 1}  ${PHASES[i].title}`, x + 110, 624, 17, i === s.phase ? C.ink : C.muted, 'center', i === s.phase ? 500 : 400);
+    }
+    const swatches = [[94, C.chromosome, 'Bakterienchromosom'], [466, C.old, 'ursprünglicher DNA-Strang'], [921, C.fresh, 'neuer DNA-Strang']];
+    for (const [x, color, label] of swatches) {
+      line(ctx, [{x, y:684}, {x:x + 28, y:684}], color, 4);
+      text(ctx, label, x + 40, 684, 16, C.muted, 'left');
+    }
+    ctx.fillStyle = '#e3e9dd'; ctx.fillRect(0, 716, 1280, 4);
+    ctx.fillStyle = '#73935b'; ctx.fillRect(0, 716, 1280 * s.t / DURATION, 4);
+    return s;
+  }
+  const api = {DURATION, PHASES, C, state, renderScene, renderVideo};
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else global.Conjugation = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+(function () {
+  'use strict';
+  const A = window.Conjugation;
+  const canvas = document.getElementById('animation'), ctx = canvas.getContext('2d');
+  const scene = document.getElementById('scene'), app = document.getElementById('app');
+  const play = document.getElementById('play'), playText = document.getElementById('play-text'), playIcon = document.getElementById('play-icon');
+  const timeline = document.getElementById('timeline'), timeLabel = document.getElementById('time');
+  const caption = document.getElementById('caption'), phases = document.getElementById('phases');
+  const labels = document.getElementById('labels'), legend = document.getElementById('legend');
+  const speed = document.getElementById('speed'), loop = document.getElementById('loop');
+  const fullscreen = document.getElementById('fullscreen');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let t = 0, playing = !reducedMotion, repeat = false, rate = 1, last = null, lastPhase = -1;
+  let width = 1280, height = 500, dpr = 1, raf = 0, wasScrubbingPlaying = false, scrubbing = false;
+  const format = seconds => `0:${String(Math.floor(seconds + .00001)).padStart(2,'0')}`;
+
+  A.PHASES.forEach((phase, i) => {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'phase'; button.title = `Zu ${phase.title} springen`;
+    button.innerHTML = `<span class="number">${i + 1}</span><span>${phase.title}</span>`;
+    button.addEventListener('click', () => seek(phase.seek)); phases.appendChild(button);
+  });
+
+  function updatePlay() {
+    playIcon.innerHTML = playing ? '<path d="M8 5v14M16 5v14" stroke-width="3"/>' : '<path d="m8 4 11 8-11 8Z" fill="currentColor" stroke="none"/>';
+    playText.textContent = playing ? 'Pause' : t >= A.DURATION ? 'Abspielen' : 'Start';
+    play.setAttribute('aria-label', playing ? 'Animation pausieren' : t >= A.DURATION ? 'Animation erneut abspielen' : 'Animation abspielen');
+  }
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const s = A.renderScene(ctx, t, {width, height, labels: labels.checked});
+    if (!scrubbing) timeline.value = t.toFixed(2);
+    timeline.setAttribute('aria-valuetext', `${t.toFixed(1).replace('.',',')} von 36 Sekunden`);
+    timeLabel.textContent = `${format(t)} / 0:36`;
+    if (s.phase !== lastPhase) {
+      lastPhase = s.phase; caption.textContent = A.PHASES[s.phase].text;
+      Array.from(phases.children).forEach((el, i) => {if(i === s.phase) el.setAttribute('aria-current','step'); else el.removeAttribute('aria-current');});
+    }
+  }
+  function schedule() {if (!raf && playing && !document.hidden) raf = requestAnimationFrame(frame);}
+  function frame(now) {
+    raf = 0;
+    if (!playing || document.hidden) {last = null; return;}
+    if (last !== null) t += Math.min((now - last) / 1000, .1) * rate;
+    last = now;
+    if (t >= A.DURATION) {
+      if (repeat) t %= A.DURATION;
+      else {t = A.DURATION; playing = false; last = null; updatePlay();}
+    }
+    draw(); schedule();
+  }
+  function seek(value) {
+    t = Math.max(0, Math.min(A.DURATION, Number(value))); last = null;
+    if (t >= A.DURATION && !repeat) {playing = false; updatePlay();}
+    draw(); schedule();
+  }
+  function toggle() {
+    if (!playing && t >= A.DURATION) t = 0;
+    playing = !playing; last = null; updatePlay(); draw(); schedule();
+  }
+  function resize() {
+    const box = scene.getBoundingClientRect(); width = Math.max(1, box.width); height = Math.max(1, box.height);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); draw();
+  }
+  play.addEventListener('click', toggle);
+  document.getElementById('restart').addEventListener('click', () => {t = 0; last = null; playing = true; updatePlay(); draw(); schedule();});
+  timeline.addEventListener('pointerdown', () => {scrubbing = true; wasScrubbingPlaying = playing; playing = false; last = null; updatePlay();});
+  timeline.addEventListener('input', () => seek(timeline.value));
+  const finishScrub = () => {
+    if (!scrubbing) return; scrubbing = false;
+    playing = wasScrubbingPlaying && t < A.DURATION; last = null; updatePlay(); draw(); schedule();
+  };
+  window.addEventListener('pointerup', finishScrub); window.addEventListener('pointercancel', finishScrub);
+  timeline.addEventListener('change', finishScrub);
+  speed.addEventListener('change', () => {rate = Number(speed.value);});
+  labels.addEventListener('change', () => {legend.hidden = !labels.checked; draw();});
+  loop.addEventListener('click', () => {repeat = !repeat; loop.setAttribute('aria-pressed', String(repeat));});
+  fullscreen.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (app.requestFullscreen) await app.requestFullscreen();
+      else if (app.webkitRequestFullscreen) app.webkitRequestFullscreen();
+    } catch (_) {fullscreen.title = 'Vollbild ist in diesem Browser nicht verfügbar';}
+  });
+  if (!app.requestFullscreen && !app.webkitRequestFullscreen) fullscreen.hidden = true;
+  document.addEventListener('fullscreenchange', () => {fullscreen.setAttribute('aria-label', document.fullscreenElement ? 'Vollbild verlassen' : 'Vollbild einschalten'); resize();});
+  document.addEventListener('visibilitychange', () => {last = null; if (!document.hidden) schedule();});
+  window.addEventListener('keydown', event => {
+    if (/INPUT|SELECT|BUTTON|TEXTAREA/.test(event.target.tagName) || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.code === 'Space') {event.preventDefault(); toggle();}
+    if (event.code === 'ArrowRight') {event.preventDefault(); seek(t + 1);}
+    if (event.code === 'ArrowLeft') {event.preventDefault(); seek(t - 1);}
+    if (event.code === 'Home') {event.preventDefault(); seek(0);}
+    if (event.code === 'End') {event.preventDefault(); seek(A.DURATION);}
+  });
+  if ('ResizeObserver' in window) new ResizeObserver(resize).observe(scene); else window.addEventListener('resize', resize);
+  updatePlay(); resize(); schedule();
+})();
+</script>
+</body>
+</html>
